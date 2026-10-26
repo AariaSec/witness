@@ -1,0 +1,26 @@
+# Whitelist of top-level keys permitted in any ledger record or bundle.jsonl
+# line. `witness bundle` and scripts/leakscan.py both enforce this — any
+# record containing a key outside this list refuses to emit (exit code 3,
+# run marked quarantined). This is the first and cheapest content-leak
+# defence: an unknown field can never silently carry prose into the bundle.
+
+allowed_keys:
+  - seq
+  - ts
+  - kind
+  - run_id
+  - digest
+  - prev_digest
+  - witness_version
+  - policy_hash
+  - evidence
+  - severity
+  - detector
+  - action
+  - ok
+  - counts
+  - model_id
+  - prompt_version_hash
+  - tool_call_count
+  - final_digest
+  - key_created_at

@@ -1,0 +1,29 @@
+# secrets / keys — never commit
+*.pem
+keys/
+.witness/keys/
+.env
+
+# runs — only runs/frozen/ is tracked
+runs/*
+!runs/frozen/
+!runs/frozen/**
+
+# build artifacts
+node_modules/
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# video / large binaries never belong in this repo
+*.mp4
+*.mov
+
+# OS
+.DS_Store

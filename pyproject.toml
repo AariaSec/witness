@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "witness"
+version = "0.1.0"
+description = "An independent recorder for AI coding-agent sessions."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "pydantic>=2",
+    "typer>=0.12",
+    "psutil>=6",
+    "watchdog>=4",
+]
+
+[project.scripts]
+witness = "witness.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=witness --cov-fail-under=80"
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
