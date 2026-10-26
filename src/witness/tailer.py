@@ -7,12 +7,22 @@ enum, a small bounded list of claimed paths/hosts, an optional count, and
 a `line_digest` (sha256 of the raw line bytes). On any parse failure the
 raw bytes are discarded and only a byte count survives, via `TailMeta`.
 
-Format note: the real Muse Code session-journal schema is undocumented
-(see final-plan audit); this module defines its own simple, content-free,
-line-delimited JSON claim format (`{"tool": ..., "paths": [...],
-"hosts": [...], "count": ...}`) that `demo/sim_agent.py` writes to and
-this module reads from. Parsing never raises — invariant exercised by
-`tests/property/test_tailer_fuzz.py`.
+Format note: this module's default parser (`DefaultClaimParser`) defines
+its own simple, content-free, line-delimited JSON claim format
+(`{"tool": ..., "paths": [...], "hosts": [...], "count": ...}`) that
+`demo/sim_agent.py` writes to and this module reads from. Parsing never
+raises — invariant exercised by `tests/property/test_tailer_fuzz.py`.
+
+Real Muse Code session-journal format: now empirically characterized (not
+undocumented) — see `witness/muse_journal.py` for the envelope-unwrapping
+parser and `docs/LIMITATIONS.md` for what remains genuinely unverified
+(the real tool-call payload shape). `MuseJournalClaimParser` there
+implements this module's `ClaimParser` protocol and can be passed to
+`Tailer(files, parser=MuseJournalClaimParser())` as a drop-in alternative
+to `DefaultClaimParser` — this is why `ClaimParser.parse_line` may return
+a *list* of records (one raw journal line can unwrap to several inner
+records), in addition to the single-record-or-`None` shape
+`DefaultClaimParser` still uses unchanged.
 """
 
 from __future__ import annotations
@@ -109,7 +119,9 @@ def parse_json_output(obj: object) -> list[AssistantClaim]:
 
 
 class ClaimParser(Protocol):
-    def parse_line(self, line: bytes, source: str) -> AssistantClaim | TailMeta | None: ...
+    def parse_line(
+        self, line: bytes, source: str
+    ) -> AssistantClaim | TailMeta | list[AssistantClaim | TailMeta] | None: ...
 
 
 class DefaultClaimParser:
@@ -208,7 +220,12 @@ class Tailer:
             if not line.strip():
                 continue
             rec = self._parser.parse_line(line, source)
-            if rec is not None:
+            if rec is None:
+                continue
+            if isinstance(rec, list):
+                for item in rec:
+                    self._emit_rec(item, file_rel)
+            else:
                 self._emit_rec(rec, file_rel)
 
     def _run(self) -> None:

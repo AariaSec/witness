@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "name": "witness-observer",
+  "displayName": "Witness Observer",
+  "version": "0.1.0",
+  "description": "Emits a content-free event line per hook firing (event name, digest, timestamp only) for the witness independent recorder to tail. Never installed into a live session by this build; validated and fixture-tested offline only.",
+  "compat": {
+    "source": "native",
+    "manifestDir": ".muse-plugin"
+  },
+  "capabilities": {
+    "skills": [],
+    "commands": [],
+    "hooks": [
+      {
+        "id": "session_start",
+        "event": "SessionStart",
+        "command": ["sh", "hooks/session_start.sh"],
+        "timeoutMs": 1000,
+        "statusMessage": "witness: recording session start"
+      },
+      {
+        "id": "pre_tool_use",
+        "event": "PreToolUse",
+        "command": ["sh", "hooks/pre_tool_use.sh"],
+        "timeoutMs": 1000,
+        "statusMessage": "witness: recording pre-tool-use"
+      },
+      {
+        "id": "post_tool_use",
+        "event": "PostToolUse",
+        "command": ["sh", "hooks/post_tool_use.sh"],
+        "timeoutMs": 1000,
+        "statusMessage": "witness: recording post-tool-use"
+      },
+      {
+        "id": "stop",
+        "event": "Stop",
+        "command": ["sh", "hooks/stop.sh"],
+        "timeoutMs": 1000,
+        "statusMessage": "witness: recording stop"
+      },
+      {
+        "id": "session_end",
+        "event": "SessionEnd",
+        "command": ["sh", "hooks/session_end.sh"],
+        "timeoutMs": 1000,
+        "statusMessage": "witness: recording session end"
+      }
+    ],
+    "mcpServers": [],
+    "reminders": []
+  }
+}

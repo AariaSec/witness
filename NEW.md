@@ -14,6 +14,7 @@ team built during the hackathon.
 - [x] Scenario arena: frozen-rule-set variant generation (private) + scoring (flagged/missed/false-alarm/time-to-stop), honest about a genuine miss
 - [x] Console: bundle viewer, timeline, claim-diff, receipt verification (client-side, real Ed25519), drift panel
 - [x] Recorded demo bundle used for every headline number in the console; corpus of additional benign/scenario bundles pending
+- [x] Real Muse Code integration surface: `session.jsonl` envelope/flat-record parser (`src/witness/muse_journal.py`), a validated native plugin declaring all 5 observer hooks (`muse-plugin/`, clean `muse plugins validate`), against three real local captures — see `docs/LIMITATIONS.md` for what's still genuinely unverified (the real tool-call payload shape; a live, tool-executing session is out of scope for this build's safety boundary)
 
 Status checkboxes are updated as each item lands; see `git log` for the
 commit that closed each one.

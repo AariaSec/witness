@@ -43,6 +43,68 @@ what's solid versus what's a placeholder.
   specified algorithm. It's good enough to drive the demo honestly, not
   good enough to call a proof.
 
+## Muse Code integration (added 2026-10-26)
+
+What's real as of this pass, all against a genuine, locally installed
+`muse` (Meta's coding-agent CLI, v1.4.13) — never a live, tool-executing
+session (see the safety boundary this work operated under):
+
+- **`src/witness/muse_journal.py`** correctly unwraps a real
+  `session.jsonl` file: the large majority of lines are already a flat
+  inner MSP record; a minority (observed: the session-opening permission
+  transaction) are a `retained_frame` envelope whose `children[].record_json`
+  must be JSON-parsed a second time. Both shapes were confirmed against
+  three independent real captures (one top-level session, two subagent
+  sessions), not inferred from documentation alone.
+- **A real, validated native plugin** (`muse-plugin/`) declares all 5
+  requested hooks (`SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`,
+  `SessionEnd`) and passes `muse plugins validate` cleanly (`valid: true`,
+  `diagnostics: []`, every hook classified `"supported"`). See
+  `docs/ARCHITECTURE.md` for the casing finding (manifest events are
+  `PascalCase`, confirmed by the validator accepting `PreToolUse` and
+  rejecting `preToolUse`).
+
+### Genuinely unverified — not guessed at
+
+- **The real tool-call payload shape.** Every real session capture made
+  for this work used `--provider echo`, the only provider safe to invoke
+  under this build's boundary (`--yolo`, `--disable-sandbox`,
+  `--disable-approval`, `--provider meta` with no key, and the
+  experimental `--provider local` flag are all out of scope — see the
+  boundary note at the top of this effort's instructions). `echo` never
+  invokes a tool, so no real capture has ever shown what a `preToolUse` /
+  `postToolUse`-equivalent record actually looks like in `session.jsonl`
+  (presumably nested under a `runtime.session` payload's `kind:"run"`
+  `event` object, alongside the observed `model_request_configured` /
+  `model_response_created` / `model_completed` sequence — but that's a
+  guess about WHERE, not a claim about the shape). `muse_journal.py`'s
+  `_PAYLOAD_TYPE_TO_CLAIM_TOOL` and `_RUN_EVENT_KIND_TO_CLAIM_TOOL` lookup
+  tables are deliberately empty rather than populated with an invented
+  shape; every real record classified so far correctly comes back "not a
+  claim," which is the honest outcome of this gap, not a bug. Closing it
+  requires a real tool-executing session, which this build will not
+  produce.
+- **The hook subprocess's input contract** (stdin vs. env vars vs. argv).
+  `muse plugins hook test` — Meta's own fixture-driven harness built
+  specifically so this never needs a live session — requires the plugin
+  to be installed first, and both install paths available in this
+  environment were refused by a legitimate safety gate (this project's
+  own permission classifier for `--scope user`; `muse`'s own
+  workspace-trust gate for `--scope project`). Neither was worked around,
+  per the same discipline as not working around the `--yolo` block. The
+  hook scripts are written defensively (drain + digest whatever arrives
+  on stdin within a bounded window, ignore argv/env content entirely) so
+  they're safe regardless of which channel turns out to be real, but
+  which channel that is remains unconfirmed. See `docs/ARCHITECTURE.md`.
+- **`retained_frame.content_sha256`'s preimage.** Present on every
+  envelope line observed, but several plausible reconstructions (sha256
+  of the concatenated `record_json` strings; of the envelope object minus
+  that field, sorted-key and as-is; of the `children` array; of
+  re-serialized inner records) were tried empirically against a real
+  captured value and none matched. `muse_journal.py` does not attempt to
+  recompute or verify this field — it would rather be silent than claim a
+  verification that isn't real.
+
 ## What would make this stronger, with more time
 
 - A real arena run across many generated scenario variants, scored against

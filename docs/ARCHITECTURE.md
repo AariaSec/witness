@@ -57,6 +57,62 @@ one architectural fact the whole design leans on: an observer positioned at
 the hook layer sees real file/process/network activity regardless of what
 the agent's sandbox permits or denies for the agent itself.
 
+### How a hook actually gets installed (Muse Code) — corrected 2026-10-26
+
+An earlier draft assumed hooks were declared in a plain file at
+`<project-root>/.muse/hooks.json`. That's wrong, and the mistake is worth
+naming so it doesn't resurface: hooks are not a standalone config file at
+all. They are one capability family of a **native plugin bundle**,
+confirmed against Meta's own bundled plugin-authoring reference
+(`create-plugin/references/native-plugin-contract.md`, shipped with the
+`muse` CLI) and empirically against the installed `muse plugins validate`
+validator (muse 1.4.13, 2026-10-26):
+
+- A plugin is a directory whose manifest lives at
+  `<plugin-root>/.muse-plugin/plugin.json` (not a bare `hooks.json`, and
+  not necessarily at the project root — the plugin root is wherever the
+  bundle is created, e.g. this repo's `muse-plugin/`).
+- The manifest's `capabilities.hooks` array holds entries shaped
+  `{"id", "event", "command", "timeoutMs"?, "statusMessage"?}`, where
+  `command` is structured argv (e.g. `["sh", "hooks/pre_tool_use.sh"]`),
+  not a shell string.
+- **Event-name casing is `PascalCase` in the manifest** (`SessionStart`,
+  `PreToolUse`, `PostToolUse`, `Stop`, `SessionEnd`, …) — confirmed
+  empirically, not guessed: `muse plugins validate` accepted
+  `"event": "PreToolUse"` cleanly and rejected `"event": "preToolUse"`
+  outright with `unsupported-hook-event`. This matters because the MSP
+  wire schema's own `HookEventName` enum (exported via
+  `muse schema generate-json-schema`) uses **lowerCamelCase**
+  (`preToolUse`) for the same event vocabulary — that enum is the
+  *catalog/listing* vocabulary (`HookCatalogEntry.event`, used when
+  inspecting already-installed hooks), a different surface from the
+  manifest's own declaration syntax. Don't assume the two ever have to
+  match casing; they don't.
+- A clean validation result is: process exits 0, stdout is parseable
+  JSON, top-level `valid: true`, `diagnostics: []`. This repo's own
+  plugin (`muse-plugin/`) validates clean with all 5 hooks above — see
+  `docs/LIMITATIONS.md` for what validation does and doesn't prove.
+- The hook subprocess's actual input contract (stdin? env vars? argv
+  beyond the fixed command?) is **not documented anywhere found** in the
+  bundled skill references or the exported MSP schema, and could not be
+  determined empirically in this build either — `muse plugins hook test`
+  (Meta's own fixture-driven test harness, which would have settled this)
+  requires the plugin to be **installed** first, and every install path
+  was blocked by a legitimate safety gate before a hook ever ran: `--scope
+  user` is refused by this project's own tooling permission classifier
+  ("Unauthorized Persistence" — it writes to global user config), and
+  `--scope project` is independently refused by `muse` itself
+  ("project-local plugin source is blocked because the workspace is
+  untrusted"). Neither was worked around. This repo's hook scripts
+  (`muse-plugin/hooks/*.sh`) are written defensively against this
+  unknown — they drain and digest whatever bytes arrive on stdin within a
+  bounded 0.5s window (discovered the hard way: a naive background `cat`
+  silently reads from `/dev/null` instead of the real stdin unless the
+  original fd is explicitly saved and re-pointed at first, since POSIX
+  shells redirect a backgrounded job's stdin away from the parent's stdin
+  by default) — but which channel Muse actually uses for a real
+  invocation remains unverified. See `docs/LIMITATIONS.md`.
+
 ## What's actually implemented (see `NEW.md` for the full checklist)
 
 - **Ledger** (`ledger.py`, `canon.py`) — append-only, hash-chained. Each
