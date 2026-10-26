@@ -59,3 +59,32 @@ correctly honest, not as a frozen number: freezing an official arena
 `run_id` set under `runs/frozen/arena-<date>/` is a separate, later
 decision (see the numbers-freeze date in the project plan), to be done
 once there, with every `run_id` listed.
+
+## Live analyst proof (real Meta open-weight model call)
+
+The analyst pass (`witness.analyst.run.analyze`) defaults to the offline
+deterministic template — zero API key, zero network call, by design (see
+that module's docstring). It also supports an opt-in live `LLMClient`;
+`BasetenClient` (`witness.analyst.client`) is a real adapter to Meta's
+open-weight **Muse Spark Open** model (`meta-models/muse-spark-open-1026`)
+via Baseten's OpenAI-compatible endpoint.
+
+**Frozen proof run:** `runs/frozen/analyst-live-proof-20261026-145221-6150/`
+(`bundle.jsonl` + `ledger.jsonl` from a real `witness demo --scenario
+exfil` recording, plus `live_report.json`, the actual response from a real
+call to `meta-models/muse-spark-open-1026`, 2026-10-26). Verified by hand
+(not in the automated gate — see below for why): `analyst_status="ok"`,
+schema-valid on the first attempt, `confidence=0.91`, correctly cited
+`marker_read` and `outbound_post` findings with their exact evidence
+`seq`s, wall time ~10-15s. This is the evidence that the project
+genuinely, meaningfully uses a Meta open-weight model — not just a wired
+code path that was never actually run.
+
+**Why this isn't in the automated test suite:** a live network call has no
+place in a gate that must stay green with zero API key (see
+`ARCHITECTURE.md`/`LIMITATIONS.md`). The automated tests
+(`tests/unit/test_analyst.py`) cover the exact same code path —
+`analyze()`'s live branch, the retry-on-schema-failure logic, and the
+fall-back-to-offline-on-any-failure guarantee — against a deterministic
+fake `LLMClient`, so the *logic* is gate-verified even though the *real*
+API call is only verified by this frozen, timestamped artifact.

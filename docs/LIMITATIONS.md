@@ -11,12 +11,16 @@ what's solid versus what's a placeholder.
   a working signal, and not part of any claimed detection rate. If it ever
   becomes real, it only gets promoted to a headline number after a
   train/holdout split and a pre-registered threshold — not before.
-- **Analyst report is offline-only in this build.** `analyst/run.py`
-  produces a deterministic template report from bundle counts; no live
-  model call is wired in. This is deliberate: the hackathon's Meta API
-  credit is only valid for a 10-day window, and the judge-facing product
-  must never depend on a live API call that could fail once that window
-  closes.
+- **Analyst report defaults to offline, on purpose — not because a live
+  path doesn't exist.** `analyst/run.py` always falls back to a
+  deterministic template report from bundle counts if no live client is
+  given, or if a live call fails/times out/fails schema twice. A real live
+  path IS wired (`BasetenClient`, Meta's open-weight Muse Spark Open) and
+  independently verified against a real bundle — see `docs/NUMBERS.md` —
+  but the offline template remains the default and the only path the
+  judge-facing demo depends on, since the hackathon's Meta API credit
+  window and any third-party credit pool can both run dry or rate-limit
+  before judging.
 - **Single-machine, single-run scope.** There is no fleet view, no
   cross-run aggregation beyond the arena scoring (if shipped — see
   `NUMBERS.md`), and no persistence of findings beyond one bundle.
@@ -47,6 +51,12 @@ what's solid versus what's a placeholder.
 - A corpus of recorded benign runs large enough to estimate a false-alarm
   rate with a real confidence interval, not just "zero false alarms in the
   demo set."
-- Wiring the live Meta Model API analyst path once a key is available,
-  with the offline template kept as the permanent fallback rather than
-  retired.
+- The live analyst path currently does a single-shot call (full record set
+  in context) rather than the originally-specified multi-turn
+  `get_record`/`query` tool-calling loop — simpler, verified working, but
+  a real tool-calling loop would scale better to very large bundles.
+- Wiring the live **Meta Model API** (Muse Spark, hosted) path once that
+  key is available — today's live path uses the open-weight model via
+  Baseten, which already satisfies "meaningfully use Meta Model API
+  and/or Meta open-weight models," but the hosted-API path specifically
+  is still untested.

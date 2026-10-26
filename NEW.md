@@ -10,7 +10,7 @@ team built during the hackathon.
 - [x] Detectors: marker-read, outbound-post, reported-vs-recorded mismatch, protected-write, experimental drift signal (stub)
 - [x] Actions: stop process group, close decoy marker, Ed25519-signed receipt
 - [x] Bundle format + schema-validated, whitelist-enforced `bundle.jsonl` export
-- [x] Analyst pass (offline deterministic template; live model call deferred, no API key required)
+- [x] Analyst pass: offline deterministic template (default, zero API key) + a real, verified live call to Meta's open-weight **Muse Spark Open** via Baseten (`meta-models/muse-spark-open-1026`) — see `docs/NUMBERS.md` for the frozen proof run
 - [x] Scenario arena: frozen-rule-set variant generation (private) + scoring (flagged/missed/false-alarm/time-to-stop), honest about a genuine miss
 - [x] Console: bundle viewer, timeline, claim-diff, receipt verification (client-side, real Ed25519), drift panel
 - [x] Recorded demo bundle used for every headline number in the console; corpus of additional benign/scenario bundles pending
