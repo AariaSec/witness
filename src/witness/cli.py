@@ -1,7 +1,8 @@
 """`witness` CLI — typer app.
 
 Subcommands for G1: `record`, `bundle`, `verify`, `keygen`, `demo`.
-`analyze`, `score`, `replay` are thin stubs (later gates: G-Arena/G2).
+`analyze`, `replay` are thin stubs (later gates: G2). `arena run` /
+`arena score` (G-Arena) are implemented — see `witness.arena`.
 """
 
 from __future__ import annotations
@@ -350,8 +351,89 @@ def analyze(bundle_path: Path = typer.Argument(...)) -> None:
 
 @app.command()
 def score() -> None:
-    """Arena scoring. not yet implemented (G-Arena, out of scope for G1)."""
+    """Reserved for a future G2 top-level scoring surface. Arena's own
+    scoring (G-Arena) lives at `witness arena score` — see below."""
     typer.echo("score: not yet implemented")
+
+
+def _discover_variant_dirs(variants_dir: Path) -> list[Path]:
+    """Every immediate subdirectory of `variants_dir` that contains an
+    `expected.json` is one variant (see `witness.arena.runner` for the
+    full directory contract)."""
+    variants_dir = Path(variants_dir)
+    dirs = sorted(
+        p for p in variants_dir.iterdir() if p.is_dir() and (p / "expected.json").exists()
+    )
+    if not dirs:
+        raise typer.BadParameter(
+            f"no variant directories (with expected.json) found under {variants_dir}"
+        )
+    return dirs
+
+
+arena_app = typer.Typer(
+    add_completion=False,
+    help="Scenario-generation + scoring harness (G-Arena). "
+    "Variants come from a directory you point at — this repo's own "
+    "tests/fixtures/arena_variants/, or a local checkout of the private "
+    "scenario generator's output; this command never reads from the "
+    "private companion repo directly.",
+)
+app.add_typer(arena_app, name="arena")
+
+
+@arena_app.command("run")
+def arena_run(
+    variants_dir: Path = typer.Argument(
+        ..., help="directory containing one subdirectory per variant"
+    ),
+    out: Path = typer.Option(
+        Path("arena_runs"), help="where per-variant lab/runs/bundle output is written"
+    ),
+    max_seconds: int = typer.Option(120, help="per-variant max record duration"),
+) -> None:
+    """Record every variant under `variants_dir` (serially) and print each
+    resulting run_id + bundle path. Use `arena score` for the one-shot
+    record-then-score flow that writes `scores.json`."""
+    from witness.arena.runner import run_variants
+
+    variant_dirs = _discover_variant_dirs(variants_dir)
+    runs = run_variants(variant_dirs, out, max_seconds=max_seconds)
+    for r in runs:
+        typer.echo(f"{r.variant_id}: run_id={r.run_id} bundle={r.bundle}")
+    typer.echo(f"{len(runs)} variant(s) recorded under {out}")
+
+
+@arena_app.command("score")
+def arena_score(
+    variants_dir: Path = typer.Argument(
+        ..., help="directory containing one subdirectory per variant"
+    ),
+    out: Path = typer.Argument(..., help="output scores.json path"),
+    runs_out: Path = typer.Option(
+        Path("arena_runs"), help="where per-variant lab/runs/bundle output is written"
+    ),
+    max_seconds: int = typer.Option(120, help="per-variant max record duration"),
+) -> None:
+    """Record every variant under `variants_dir` (serially) and write an
+    honest `scores.json` — flagged/missed/false-alarm/time-to-stop, per
+    run_id, including any finding kind nobody wrote a detector for."""
+    from witness.arena.runner import run_variants
+    from witness.arena.score import score as score_runs
+
+    variant_dirs = _discover_variant_dirs(variants_dir)
+    runs = run_variants(variant_dirs, runs_out, max_seconds=max_seconds)
+    scores = score_runs(runs)
+
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
+        canonical_json(scores.model_dump(mode="json")).decode("utf-8") + "\n", encoding="utf-8"
+    )
+    typer.echo(
+        f"scores: M={scores.M} flagged={scores.flagged} missed={scores.missed} "
+        f"false_alarms={scores.false_alarms} benign_runs={scores.benign_runs} -> {out}"
+    )
 
 
 @app.command()

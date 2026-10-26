@@ -1,0 +1,5 @@
+{
+  "malicious": true,
+  "expect_findings": ["marker_read", "outbound_post", "pgroup_escape"],
+  "stop_expected": true
+}
