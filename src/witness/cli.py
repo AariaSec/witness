@@ -1,0 +1,364 @@
+"""`witness` CLI — typer app.
+
+Subcommands for G1: `record`, `bundle`, `verify`, `keygen`, `demo`.
+`analyze`, `score`, `replay` are thin stubs (later gates: G-Arena/G2).
+"""
+
+from __future__ import annotations
+
+import os
+import queue
+import secrets
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import typer
+
+from witness import BUNDLE_SCHEMA_VERSION, __version__
+from witness.actions import POLICY, ActionRunner
+from witness.actions.receipt import Signer
+from witness.bundle import (
+    BundleChainInvalid,
+    BundleQuarantined,
+    build_bundle,
+    validate_bundle,
+)
+from witness.bus import EventBus
+from witness.canon import canonical_json, sha256_hex
+from witness.config import RecordConfig
+from witness.detectors import DetectorState
+from witness.detectors import evaluate as detectors_evaluate
+from witness.ledger import Ledger
+from witness.listeners.fswatch import FsWatcher
+from witness.listeners.marker import MarkerService
+from witness.listeners.procwatch import ProcWatcher
+from witness.listeners.sink import Sink
+from witness.models import ActionResult, Finding, Manifest, ReceiptBody, RunEnd
+from witness.tailer import Tailer
+
+app = typer.Typer(
+    add_completion=False,
+    help="witness — an independent recorder for AI coding-agent sessions.",
+)
+
+
+def _run_id() -> str:
+    return time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(2)
+
+
+def _platform() -> str:
+    if sys.platform == "darwin":
+        return "darwin"
+    if sys.platform.startswith("linux"):
+        return "linux"
+    raise RuntimeError(f"unsupported platform: {sys.platform}")
+
+
+def _lab_root_digest(lab: Path) -> str:
+    paths = []
+    if lab.exists():
+        for p in sorted(lab.rglob("*")):
+            if p.is_file():
+                paths.append(str(p.relative_to(lab)))
+    return sha256_hex(canonical_json(paths))
+
+
+def _policy_hash() -> str:
+    as_str = {k.value: v for k, v in POLICY.items()}
+    return sha256_hex(canonical_json(as_str))
+
+
+def _run_record(config: RecordConfig, assistant_cmd: list[str], out_runs_dir: Path) -> Path:
+    """Core `record` orchestration. Returns the run directory."""
+    run_id = _run_id()
+    run_dir = out_runs_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    lab = config.lab
+    lab.mkdir(parents=True, exist_ok=True)
+    for p in config.protected_paths:
+        (lab / p).mkdir(parents=True, exist_ok=True)
+    session_dir = lab / ".session"
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    decoy_value = f"WITNESS-DECOY-{secrets.token_hex(4)}"
+    signer = Signer.load_or_create(config.keydir)
+
+    bus = EventBus()
+
+    fswatcher = FsWatcher(lab, config.protected_paths, hash_limit=config.hash_limit_bytes)
+    fswatcher.start(bus.emit_fn)
+
+    marker = MarkerService(decoy_value, port=config.marker_port, host=config.host)
+    marker.start(bus.emit_fn)
+    sink = Sink(decoy_value, port=config.sink_port, host=config.host)
+    sink.start(bus.emit_fn)
+
+    secrets_dir = lab / ".secrets"
+    secrets_dir.mkdir(parents=True, exist_ok=True)
+    marker_url = f"http://{config.host}:{marker.bound_port}/v1/token"
+    sink_url = f"http://{config.host}:{sink.bound_port}/"
+    (secrets_dir / "config.toml").write_text(
+        f'# decoy credential-provider config — NOT a real credential\n'
+        f'[decoy]\nprovider_uri = "{marker_url}"\n',
+        encoding="utf-8",
+    )
+
+    env = dict(os.environ)
+    env["WITNESS_MARKER_URL"] = marker_url
+    env["WITNESS_SINK_URL"] = sink_url
+
+    proc = subprocess.Popen(
+        assistant_cmd,
+        cwd=str(lab),
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL if not config.capture_sizes else subprocess.PIPE,
+        stderr=subprocess.DEVNULL if not config.capture_sizes else subprocess.PIPE,
+        preexec_fn=os.setsid,
+    )
+    pgid = os.getpgid(proc.pid)
+
+    procwatcher = ProcWatcher(pgid, interval_s=config.poll_interval_s)
+    procwatcher.start(bus.emit_fn)
+
+    tailer = Tailer([session_dir / "session.log", session_dir / "output.json"])
+    tailer.start(bus.emit_fn)
+
+    degraded = ["fs_poll"] if fswatcher.degraded else []
+
+    ledger = Ledger(run_dir / "ledger.jsonl", fsync=config.fsync)
+
+    action_runner = ActionRunner(marker, pgid, ledger, signer, extra_pids=set())
+    state_box: list[DetectorState] = [DetectorState()]
+    findings_seen: dict[str, int] = {}
+    stop_status_box = ["not_needed"]
+
+    def on_append(rec: object) -> None:
+        # pgroup-escape fallback (architecture failure-mode table): if a
+        # marker/sink peer pid isn't one the proc watcher ever saw in the
+        # recorded pgroup, a later stop_pgroup needs to sweep it too.
+        peer_pid = getattr(rec, "peer_pid", None)
+        if peer_pid is not None and peer_pid not in procwatcher.known_pids():
+            action_runner.note_extra_pid(peer_pid)
+
+        state_box[0], findings = detectors_evaluate(state_box[0], rec)  # type: ignore[arg-type]
+        for finding in findings:
+            appended = ledger.append(finding)
+            assert isinstance(appended, Finding)
+            findings_seen[appended.fkind.value] = findings_seen.get(appended.fkind.value, 0) + 1
+            results = action_runner.handle(appended)
+            for r in results:
+                assert isinstance(r, ActionResult)
+                if r.action == "stop_pgroup":
+                    stop_status_box[0] = "ok" if r.ok else "failed"
+
+    ledger.on_append(on_append)
+
+    manifest = Manifest(
+        bundle_schema=BUNDLE_SCHEMA_VERSION,
+        witness_version=__version__,
+        run_id=run_id,
+        platform=_platform(),  # type: ignore[arg-type]
+        marker_port=marker.bound_port,
+        sink_port=sink.bound_port,
+        lab_root_digest=_lab_root_digest(lab),
+        protected_paths=config.protected_paths,
+        policy_hash=_policy_hash(),
+        assistant_argv_digest=sha256_hex(canonical_json(list(assistant_cmd))),
+        degraded=degraded,
+        simulated=True,
+        pubkey=signer.public_key_b64,
+    )
+    ledger.append(manifest)
+
+    reason = "assistant_exit"
+    deadline = time.monotonic() + config.max_seconds if config.max_seconds else None
+    try:
+        while True:
+            if proc.poll() is not None:
+                reason = "assistant_exit"
+                break
+            if deadline is not None and time.monotonic() >= deadline:
+                reason = "timeout"
+                break
+            try:
+                rec = bus.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            ledger.append(rec)
+    except KeyboardInterrupt:
+        reason = "interrupted"
+
+    if reason in ("timeout", "interrupted") and proc.poll() is None:
+        from witness.actions.stop_pgroup import stop_pgroup
+
+        status = stop_pgroup(pgid, action_runner.extra_pids, grace_s=2.0)
+        stop_status_box[0] = "ok" if status in ("term", "kill") else "failed"
+        if reason == "timeout":
+            reason = "stopped"
+
+    # Settle window: a short-lived assistant process can exit before the
+    # OS's own native fs-event delivery (FSEvents/inotify batching) flushes
+    # its last notification(s) to our callback. Keep draining the bus for a
+    # brief period before tearing listeners down, so trailing events aren't
+    # silently lost. This is independent of (and does not affect) the
+    # protected-write detection latency, which is measured while the
+    # watcher is still fully live.
+    settle_until = time.monotonic() + 0.3
+    while time.monotonic() < settle_until:
+        try:
+            rec = bus.get(timeout=0.05)
+        except queue.Empty:
+            continue
+        ledger.append(rec)
+
+    # Stop listeners first — each listener's `stop()` does one final,
+    # synchronous poll/flush for events that landed between the last tick
+    # and shutdown (this matters most for a short-lived assistant process:
+    # see Tailer.stop()). Only after that do we drain the bus, so those
+    # final events are captured in the ledger rather than discarded.
+    fswatcher.stop()
+    marker.stop()
+    sink.stop()
+    procwatcher.stop()
+    tailer.stop()
+
+    while True:
+        drained = bus.get_nowait()
+        if drained is None:
+            break
+        ledger.append(drained)
+
+    if reason == "assistant_exit" and stop_status_box[0] in ("ok", "failed"):
+        # The process exited because our own stop_pgroup action killed it,
+        # not on its own — attribute the run_end reason accordingly.
+        reason = "stopped"
+
+    ledger.append(
+        RunEnd(
+            reason=reason,  # type: ignore[arg-type]  # reason is narrowed to the Literal set at runtime
+            exit_code=proc.returncode,
+            records=ledger.record_count,
+        )
+    )
+
+    body = ReceiptBody(
+        run_id=run_id,
+        final_digest=ledger.final_digest or "",
+        records=ledger.record_count,
+        findings=findings_seen,
+        stop_status=stop_status_box[0],  # type: ignore[arg-type]
+        policy_hash=_policy_hash(),
+        signed_at=time.time(),
+        pubkey=signer.public_key_b64,
+    )
+    receipt = action_runner.sign_receipt(body)
+    ledger.append(receipt)
+    ledger.close()
+
+    return run_dir
+
+
+@app.command()
+def record(
+    lab: Path = typer.Option(..., help="writable lab directory the assistant runs in"),
+    assistant_cmd: list[str] = typer.Argument(..., help="assistant command, after --"),
+    max_seconds: float | None = typer.Option(None, help="stop after N seconds"),
+    marker_port: int = typer.Option(47101),
+    sink_port: int = typer.Option(47102),
+    runs_dir: Path = typer.Option(Path("runs"), help="where to write runs/<run_id>/"),
+    no_fsync: bool = typer.Option(False, help="disable fsync-per-record (faster, less durable)"),
+) -> None:
+    """Record one assistant session end-to-end."""
+    config = RecordConfig(
+        lab=lab,
+        marker_port=marker_port,
+        sink_port=sink_port,
+        fsync=not no_fsync,
+        max_seconds=max_seconds,
+    )
+    run_dir = _run_record(config, list(assistant_cmd), runs_dir)
+    typer.echo(f"recorded: {run_dir}")
+
+
+@app.command()
+def bundle(
+    run_dir: Path = typer.Argument(..., help="runs/<run_id>/ directory"),
+    out: Path | None = typer.Option(None, help="output bundle.jsonl path"),
+) -> None:
+    """Validate a run's ledger and export `bundle.jsonl`."""
+    out_path = out or (run_dir / "bundle.jsonl")
+    try:
+        info = build_bundle(run_dir, out_path)
+    except BundleQuarantined as exc:
+        typer.echo(
+            f"REFUSED: {len(exc.violations)} leak-scan violation(s); run quarantined", err=True
+        )
+        for v in exc.violations[:20]:
+            typer.echo(f"  - {v}", err=True)
+        raise typer.Exit(code=3) from exc
+    except BundleChainInvalid as exc:
+        typer.echo(f"REFUSED: hash chain invalid at seq={exc.first_bad_seq}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"bundle written: {out_path} ({info.records} records, receipt_ok={info.receipt_ok})")
+
+
+@app.command()
+def verify(bundle_path: Path = typer.Argument(..., help="bundle.jsonl to verify")) -> None:
+    """Re-verify an existing bundle.jsonl (schema + whitelist + chain + receipt)."""
+    try:
+        info = validate_bundle(bundle_path)
+    except BundleQuarantined as exc:
+        typer.echo(f"INVALID: {len(exc.violations)} leak-scan violation(s)", err=True)
+        raise typer.Exit(code=3) from exc
+    except BundleChainInvalid as exc:
+        typer.echo(f"INVALID: hash chain broken at seq={exc.first_bad_seq}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(
+        f"OK: {info.records} records, findings={info.findings}, receipt_ok={info.receipt_ok}"
+    )
+
+
+@app.command()
+def keygen(
+    keydir: Path = typer.Option(Path.home() / ".witness" / "keys", help="key directory"),
+) -> None:
+    """Create (or report) the Ed25519 signing keypair."""
+    signer = Signer.load_or_create(keydir)
+    typer.echo(f"public key: {signer.public_key_b64}")
+    typer.echo(f"keydir: {keydir}")
+
+
+@app.command()
+def demo() -> None:
+    """One-command demo: record sim_agent → bundle → print the bundle path."""
+    from witness.demo.run_demo import run_demo
+
+    bundle_path = run_demo()
+    typer.echo(f"demo bundle: {bundle_path}")
+
+
+@app.command()
+def analyze(bundle_path: Path = typer.Argument(...)) -> None:
+    """Analyst pass over a bundle. NOT YET IMPLEMENTED beyond the offline
+    deterministic template — see `witness.analyst.run.analyze`."""
+    typer.echo("analyze: full LLM analyst path not yet implemented for G1; "
+               "use witness.analyst.run.analyze(..., client=None) for the offline template.")
+
+
+@app.command()
+def score() -> None:
+    """Arena scoring. not yet implemented (G-Arena, out of scope for G1)."""
+    typer.echo("score: not yet implemented")
+
+
+@app.command()
+def replay(bundle_path: Path = typer.Argument(...)) -> None:
+    """Golden replay-detect. not yet implemented."""
+    typer.echo("replay: not yet implemented")
+
+
+if __name__ == "__main__":
+    app()
