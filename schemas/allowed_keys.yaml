@@ -1,26 +1,132 @@
-# Whitelist of top-level keys permitted in any ledger record or bundle.jsonl
-# line. `witness bundle` and scripts/leakscan.py both enforce this — any
-# record containing a key outside this list refuses to emit (exit code 3,
-# run marked quarantined). This is the first and cheapest content-leak
-# defence: an unknown field can never silently carry prose into the bundle.
+# Whitelist of keys permitted anywhere in a ledger record or bundle.jsonl
+# line (checked recursively, at every nesting depth). `witness bundle` and
+# `scripts/leakscan.py` both enforce this — any record containing a key
+# outside this list refuses to emit (exit code 3, run marked quarantined).
+#
+# This is deliberately a SECOND, independent, cheap defence on top of
+# pydantic's `ConfigDict(extra="forbid")` on every model in
+# `witness/models.py` — if that whitelist and this file ever disagree,
+# `models.py` is authoritative and this file must be updated to match
+# (there is a test for that: tests/unit/test_allowed_keys_sync.py).
+#
+# Includes the handful of FindingKind enum values that appear as dynamic
+# dict KEYS (not schema field names) inside `receipt.body.findings`
+# (e.g. {"marker_read": 2}) — these are a small fixed vocabulary, not a
+# content-leak vector, so they're whitelisted explicitly rather than
+# excluded from the recursive scan.
 
 allowed_keys:
+  # Base envelope
   - seq
-  - ts
   - kind
-  - run_id
+  - ts_wall
+  - ts_mono
+  - prev
   - digest
-  - prev_digest
+
+  # Manifest
+  - bundle_schema
   - witness_version
+  - run_id
+  - platform
+  - marker_port
+  - sink_port
+  - lab_root_digest
+  - protected_paths
   - policy_hash
-  - evidence
+  - assistant_argv_digest
+  - degraded
+  - simulated
+  - pubkey
+
+  # MarkerRead
+  - peer_pid
+  - peer_exe
+  - path
+  - ua_digest
+
+  # OutboundPost
+  - dest
+  - bytes
+  - body_sha256
+  - content_type
+  - contains_marker
+
+  # FsEvent
+  - op
+  - sha256
+  - protected
+
+  # ProcEvent
+  - pid
+  - ppid
+  - exe
+  - cmdline_digest
+
+  # AssistantClaim
+  - source
+  - tool
+  - claimed_paths
+  - claimed_hosts
+  - claimed_count
+  - line_digest
+
+  # TailMeta
+  - event
+  - file
+  - bytes_skipped
+
+  # Finding
+  - fkind
   - severity
-  - detector
+  - evidence_seqs
+  - score
+  - detector_version
+
+  # ActionResult
   - action
+  - finding_seq
   - ok
-  - counts
-  - model_id
-  - prompt_version_hash
-  - tool_call_count
+  - latency_ms
+  - detail
+
+  # ClockWarning
+  - delta_s
+
+  # RunEnd
+  - reason
+  - exit_code
+  - records
+
+  # ReceiptBody / Receipt
   - final_digest
-  - key_created_at
+  - findings
+  - stop_status
+  - signed_at
+  - body
+  - sig
+
+  # ReportStep / Discrepancy
+  - seq_refs
+  - code
+  - claim_seq
+  - record_seqs
+
+  # Report
+  - model_id
+  - prompt_version
+  - analyst_status
+  - tool_calls
+  - summary_codes
+  - timeline
+  - reported_vs_recorded
+  - confidence
+
+  # Dynamic dict keys inside receipt.body.findings — FindingKind values,
+  # not schema field names, but a small fixed vocabulary.
+  - marker_read
+  - outbound_post
+  - mismatch
+  - protected_write
+  - pgroup_escape
+  - drift
