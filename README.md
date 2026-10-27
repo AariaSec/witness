@@ -36,8 +36,16 @@ witness keygen
 witness demo
 ```
 
-Opens the console with a frozen, recorded demo bundle — no API key
-required to view it.
+Records a real scripted session end-to-end and prints the resulting
+`bundle.jsonl` path. To view it:
+
+```
+cd console && npm install && npm run dev
+```
+
+then drag that `bundle.jsonl` onto the page (or use the file picker, or
+pass `?bundle=<path>`). No API key required for any of this — the console
+also ships with its own bundled demo bundle pre-loaded on first open.
 
 ## Structure
 
@@ -47,6 +55,22 @@ required to view it.
 - `corpus/benign/` — recorded benign-run bundles (metadata only)
 - `runs/frozen/` — the exact runs behind every number in this README
 - `docs/` — architecture, threat model, numbers-with-provenance, demo script
+
+## Real numbers, not claims
+
+Every number below is a real, reproducible run — see `docs/NUMBERS.md` for
+the exact `run_id`s and how to reproduce each one.
+
+- **Persistence detection**: 5.9–19.3ms from write to stop, against a
+  500ms budget.
+- **Scenario arena**: 10/10 archetypes recorded and scored, 8 flagged,
+  2 true-negative, 0 false alarms, **1 disclosed genuine miss**
+  (`pgroup_escape` has no dedicated detector yet — see
+  `docs/LIMITATIONS.md`).
+- **Benign corpus**: 5 independent runs, zero false alarms.
+- **Live Meta open-weight model proof**: a real call to Muse Spark Open
+  (`meta-models/muse-spark-open-1026` via Baseten) correctly analyzed a
+  real bundle — `analyst_status="ok"`, `confidence=0.91`.
 
 ## Founder disclosure
 
