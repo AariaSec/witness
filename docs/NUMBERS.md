@@ -1,5 +1,68 @@
 # NUMBERS
 
+## The small-n experiment: turning one anecdote into a rate (2026-10-27)
+
+Everything else real-agent in this file, before this section, was n=1 or
+n=2 — a genuine catch, chain-verified and signed, but one scenario run
+once. This section is the first attempt to go beyond that: 8 task
+prompts (4 decoy-adjacent variants of the flagship task, 4 ordinary
+benign/control tasks with no credential or webhook involved at all —
+"add a docstring," "write a test," "create a README," "refactor
+duplicated code"), each run 4 times through a real Muse Code session
+(`--provider meta`), 32 runs total. Harness: `scripts/experiment/`
+(`run_batch.sh` + `score.py`); raw per-run results committed at
+`scripts/experiment/results.csv` — every number below traces to a row in
+that file, reproducible by re-running the harness.
+
+**Label this clearly: n=16 (decoy) / n=16 (control), one task family, one
+model. Directional, not a statistical benchmark — a confidence interval
+on n=16 would be wide enough to be close to meaningless. The value here
+is the four numbers themselves and what running this immediately
+surfaced, not a claim about a true population rate.**
+
+| Metric | Rate | n |
+|---|---|---|
+| Marker-touch rate (decoy tasks) | 7/16 (44%) | 16 |
+| Claim/record mismatch rate (decoy tasks) | 0/16 (0%) | 16 |
+| Mismatch rate (control/benign tasks) | 0/16 (0%) | 16 |
+| Clean gate-pass rate (control/benign tasks) | 16/16 (100%) | 16 |
+
+**Read this honestly, not favorably:**
+- **44% marker-touch rate** means more than half the time, an
+  adjacent/ambient hint toward a credential-shaped file did NOT lead the
+  agent to actually touch it. The original flagship proof (one run) said
+  nothing about this rate — it could only ever show "yes, this can
+  happen," never "how often." This is the first real answer to "how
+  often," even at n=16.
+- **0% mismatch rate on decoy tasks** is a real, slightly deflating
+  finding, stated plainly rather than quietly dropped: the original
+  flagship Muse catch (`...-7dca`) DID produce a genuine mismatch (claims
+  omitted both touched files). This batch didn't reproduce that at all —
+  on these 16 runs, when Muse's claim log covered a write, it was
+  accurate. That doesn't contradict the flagship catch (a real,
+  chain-signed, independently-verified event) — it means under-claiming
+  is rarer than one anecdote could tell you, which is exactly why n=1
+  was never enough to begin with.
+- **100% clean gate-pass rate on control tasks** is the number that
+  almost wasn't true. The FIRST run of this exact batch (same harness,
+  same tasks) found two real false-positive bugs mid-run: `pgroup_escape`
+  firing stop-severity on ordinary Muse-internal subprocess detachment
+  (not malicious, Muse's own worker processes legitimately detach for
+  unrelated reasons) — and the destructive `stop_pgroup` action firing
+  along with it — and `mismatch` comparing `read` claims against
+  write-only recorded events, flagging an agent for reading a file it
+  was never claimed to have written. Both were found DURING this
+  experiment, fixed the same session (see `docs/LIMITATIONS.md` for both
+  write-ups), and this is the re-run with both fixes in place. The
+  pre-fix run is kept, not deleted, at
+  `scripts/experiment/results.csv.bak-pre-fix-20261027` (untracked,
+  evidence of the bug existing, not cited as a headline number). Before
+  the fix: policy FAIL on 7/16 decoy runs and 1/16 control runs (the
+  pgroup_escape bug), and `mismatch` false-fired on 4/16 control runs
+  (the read-claim bug) — both from the same batch, exact counts from that
+  file. After: zero of either, on a full clean re-run, not a
+  cherry-picked one.
+
 ## Paired comparison: the same flagship task, two agents (n=1, directional only)
 
 **This is not a benchmark and should never be read as one.** One scenario,
