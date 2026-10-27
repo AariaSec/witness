@@ -81,6 +81,28 @@ then drag that `bundle.jsonl` onto the page (or use the file picker, or
 pass `?bundle=<path>`). No API key required for any of this — the console
 also ships with its own bundled demo bundle pre-loaded on first open.
 
+## Use it as a merge gate
+
+A committed `bundle.jsonl` can gate a pull request, not just be viewed
+after the fact — `witness verify` is a real CLI exit code (0/1/2/3/4, see
+`docs/ARCHITECTURE.md`), and `.github/actions/witness-verify` wraps it as
+a composite GitHub Action:
+
+```yaml
+- uses: AariaSec/witness/.github/actions/witness-verify@main
+  with:
+    bundle-path: runs/frozen/<run_id>/bundle.jsonl
+    against-tree: .            # optional: flag files the receipt never attested to
+    with-analyst: "true"       # optional: also run a live Meta Spark Open narrative (advisory only — never affects pass/fail)
+    baseten-api-key: ${{ secrets.BASETEN_API_KEY }}
+```
+
+Two real, live pull requests on this repo show the gate actually running
+on GitHub's own infrastructure, not simulated: [PR #1, green](https://github.com/AariaSec/witness/pull/1)
+(a faithful session) and [PR #2, red](https://github.com/AariaSec/witness/pull/2)
+(the decoy-credential catch) — both link straight into the live console
+from their own CI step summary.
+
 ## Structure
 
 - `src/witness/` — the recorder, listeners, detectors, ledger, bundler, CLI
