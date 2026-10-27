@@ -213,12 +213,65 @@ export function canonicalJson(v: unknown, floatKeys: ReadonlySet<string> = new S
   throw new Error(`cannot canonicalise ${typeof v}`);
 }
 
+/**
+ * Receipt v0.2 added four OPTIONAL fields to `ReceiptBody`
+ * (`witness/models.py`). A receipt that genuinely sets one keeps it in the
+ * signed payload; one that's still at its just-added default does NOT —
+ * `ReceiptBody.canonical_payload()` strips it before signing, so a v0.1-era
+ * receipt's bytes stay byte-identical. This MUST mirror that exact stripping
+ * here, or the console's own canonicalisation diverges from what was
+ * actually signed the moment a real receipt has `git_commit_sha: null`
+ * (the common case — none of the lab directories so far are real git repos)
+ * even though `coverage`/`changed_file_digests`/`git_tree_digest` are
+ * genuinely populated. Caught 2026-10-27: this exact gap made BOTH
+ * flagship real-agent bundles show "RECEIPT INVALID" in the full console
+ * (the share view never hit this, since it doesn't render ReceiptPanel at
+ * all) despite `witness verify` confirming `receipt_ok=True` for both.
+ */
+const RECEIPT_BODY_V02_DEFAULTS: Record<string, 'null' | 'empty_obj' | 'empty_arr'> = {
+  git_commit_sha: 'null',
+  git_tree_digest: 'null',
+  changed_file_digests: 'empty_obj',
+  coverage: 'empty_arr',
+};
+
+/** Strip a v0.2 field from a lossless `obj` node's entries when its value
+ * matches the field's just-added default exactly — mirrors
+ * `strip_receipt_body_v02_defaults` (models.py) at the byte level. */
+function stripV02FromNode(node: JNode): JNode {
+  if (node.t !== 'obj') return node;
+  const kept = node.entries.filter(([k, v]) => {
+    const kind = RECEIPT_BODY_V02_DEFAULTS[k];
+    if (!kind) return true;
+    if (kind === 'null') return !(v.t === 'lit' && v.raw === 'null');
+    if (kind === 'empty_obj') return !(v.t === 'obj' && v.entries.length === 0);
+    if (kind === 'empty_arr') return !(v.t === 'arr' && v.items.length === 0);
+    return true;
+  });
+  return { t: 'obj', entries: kept };
+}
+
+/** Same stripping, for a plain parsed JS object (the py_repr candidates). */
+function stripV02FromPlain(body: ReceiptBody): ReceiptBody {
+  const out = { ...(body as unknown as Record<string, unknown>) };
+  for (const [k, kind] of Object.entries(RECEIPT_BODY_V02_DEFAULTS)) {
+    const v = out[k];
+    const isDefault =
+      (kind === 'null' && v === null) ||
+      (kind === 'empty_obj' && v !== null && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) ||
+      (kind === 'empty_arr' && Array.isArray(v) && v.length === 0);
+    if (isDefault) delete out[k];
+  }
+  return out as unknown as ReceiptBody;
+}
+
 /** Extract the `body` sub-tree of a raw receipt line, losslessly. */
 function bodyNodeFromRaw(rawLine: string): JNode | null {
   try {
     const root = parseLossless(rawLine);
     if (root.t !== 'obj') return null;
-    return root.entries.find(([k]) => k === 'body')?.[1] ?? null;
+    const node = root.entries.find(([k]) => k === 'body')?.[1] ?? null;
+    return node ? stripV02FromNode(node) : null;
   } catch {
     return null;
   }
@@ -241,8 +294,9 @@ export function canonicalCandidates(body: ReceiptBody, rawLine?: string | null):
     const node = bodyNodeFromRaw(rawLine);
     if (node) push('lossless', canonicalFromNode(node));
   }
-  push('py_repr', canonicalJson(body));
-  push('py_repr_float_ts', canonicalJson(body, new Set(['signed_at'])));
+  const strippedBody = stripV02FromPlain(body);
+  push('py_repr', canonicalJson(strippedBody));
+  push('py_repr_float_ts', canonicalJson(strippedBody, new Set(['signed_at'])));
   return out;
 }
 
