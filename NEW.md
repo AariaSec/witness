@@ -7,7 +7,7 @@ team built during the hackathon.
 
 - [x] Recorder core: append-only, hash-chained ledger (`src/witness/ledger.py`, `canon.py`)
 - [x] Listeners: decoy credential marker service, digest-only sink, process-group watcher, filesystem watcher
-- [x] Detectors: marker-read, outbound-post, reported-vs-recorded mismatch, protected-write, experimental drift signal (stub)
+- [x] Detectors: marker-read, outbound-post, reported-vs-recorded mismatch, protected-write, process-group escape, experimental drift signal (stub)
 - [x] Actions: stop process group, close decoy marker, Ed25519-signed receipt
 - [x] Bundle format + schema-validated, whitelist-enforced `bundle.jsonl` export
 - [x] Analyst pass: offline deterministic template (default, zero API key) + a real, verified live call to Meta's open-weight **Muse Spark Open** via Baseten (`meta-models/muse-spark-open-1026`) — see `docs/NUMBERS.md` for the frozen proof run
@@ -21,6 +21,10 @@ team built during the hackathon.
 - [x] **The merge gate is now partly powered by a live Meta open-weight model call**: `witness verify --with-analyst` runs the analyst pass (Muse Spark Open via Baseten, falling back to the offline template on any failure) alongside the chain/policy checks and publishes its content-free verdict in the same step summary — fusing the two previously-separate Meta-tooling proofs into one. Confirmed live on a real GitHub-hosted runner, not just locally: [PR #3](https://github.com/AariaSec/witness/pull/3) — `analyst: status=ok confidence=0.93`, real Baseten call, content-free codes only
 - [x] **A small, honestly-labeled paired comparison** of the two flagship catches (n=1, directional only, never framed as a benchmark) — see `docs/NUMBERS.md`
 - [x] **A real `pgroup_escape` detector**, closing a gap this project previously disclosed as undetected — fed by both `ProcWatcher`'s poll loop and a synchronous peer-pgid check at the marker/sink listeners (needed because the escapes actually demonstrated are too short-lived for polling alone). Proven on the originally-disclosed scenario (now a regression test) AND a freshly-authored, structurally distinct two-hop holdout never used to build the detector — see `docs/NUMBERS.md`
+- [x] **An honest small-n experiment harness** (`scripts/experiment/`) — 8 tasks (4 decoy-adjacent, 4 benign control), run repeatedly through real Muse Code sessions, scoring a marker-touch rate, a claim/record mismatch rate, and a clean-gate-pass rate — turning the earlier n=1 flagship anecdote into an actual, honestly-labeled rate. Running it immediately surfaced and led to fixing **two real false-positive bugs**, not found by inspection: `pgroup_escape` firing stop-severity (and triggering the destructive stop action) on ordinary subprocess detachment inside the real Muse binary, and `mismatch` comparing `read` claims against write-only recorded events. Both fixed, tested, documented in `docs/LIMITATIONS.md`
+- [x] **Console share view** (`?bundle=...&view=share`) — a clean, chrome-free deep-linkable frame around the existing "Agent said / Witness recorded" diff, used as the landing-page hero and the merge-gate step-summary deep link
+- [x] **The merge-gate step summary now links directly into the live console** for a bundle it recognizes (the two demo-PR bundles mirrored into `console/public/bundles/`, same pattern as the flagship ones) — both live demo PRs updated with working deep links
+- [x] **README documents the merge gate itself** — the real composite-action usage snippet and links to both live demo PRs, previously missing entirely despite being the project's central pivot
 
 Status checkboxes are updated as each item lands; see `git log` for the
 commit that closed each one.
