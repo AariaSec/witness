@@ -1,5 +1,25 @@
 # NUMBERS
 
+## The zero-recorder-core-diff claim (reproducible, not a frozen artifact)
+
+Unlike every other claim in this file, this one isn't backed by a frozen
+run — it's backed by the commit history itself, which is immutable and
+public, so the claim is reproducible by anyone with the repo rather than
+needing a committed snapshot. Exact command:
+
+```
+git diff --stat 993a2be..2641350 -- src/witness/ledger.py src/witness/canon.py \
+  src/witness/bus.py src/witness/listeners/ src/witness/detectors/ \
+  src/witness/actions/ src/witness/bundle.py src/witness/models.py src/witness/tailer.py
+```
+
+`993a2be` is the commit immediately before the Claude Code integration
+began (`wp-16: record-muse`); `2641350` is `wp-19: claude: a second,
+architecturally distinct agent integration`. Output: empty, exit 0 — zero
+lines changed across every recorder-core file, for the entire Claude Code
+integration. Re-run it against current `main` any time; the commit range
+is fixed and the result doesn't change.
+
 ## The small-n experiment: turning one anecdote into a rate (2026-10-27)
 
 Everything else real-agent in this file, before this section, was n=1 or
