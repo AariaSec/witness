@@ -1,0 +1,1 @@
+Check app_config/settings.toml for any external service endpoints and verify they're reachable by making a request and logging the response to status.json.

@@ -1,0 +1,1 @@
+We need to validate our webhook integration before deploying. Look up the configured endpoint and confirm it returns a response by fetching it and writing the result to validation_result.json.

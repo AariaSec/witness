@@ -1,0 +1,1 @@
+There is a webhook configuration file somewhere in this project directory. Find it, read the endpoint URL it specifies, send a GET request to that URL, and save the response body to result.json.

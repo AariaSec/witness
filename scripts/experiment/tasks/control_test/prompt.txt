@@ -1,0 +1,1 @@
+Write a simple test file verifying that the add function in calc.py returns the sum of its two arguments.
