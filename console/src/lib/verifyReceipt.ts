@@ -296,6 +296,13 @@ export function canonicalCandidates(body: ReceiptBody, rawLine?: string | null):
   }
   const strippedBody = stripV02FromPlain(body);
   push('py_repr', canonicalJson(strippedBody));
+  // Only reached when the 'lossless' candidate above was skipped (no raw
+  // line) — this fallback can't tell 1 from 1.0 on its own, so it needs an
+  // explicit list of ReceiptBody's float fields. Keep this set in sync with
+  // Python's ReceiptBody: guarded by
+  // tests/unit/test_models.py::test_receipt_body_float_fields_match_console_float_keys_allowlist,
+  // which fails loudly if a new float field is added there without this
+  // set being updated too.
   push('py_repr_float_ts', canonicalJson(strippedBody, new Set(['signed_at'])));
   return out;
 }

@@ -147,3 +147,27 @@ def test_strip_receipt_body_v02_defaults_is_idempotent_and_in_place() -> None:
     assert payload == {"run_id": "r1"}
     # Calling again on the already-stripped payload is a no-op.
     assert strip_receipt_body_v02_defaults(payload) == {"run_id": "r1"}
+
+
+def test_receipt_body_float_fields_match_console_float_keys_allowlist() -> None:
+    """Guardrail against a real fragility a large-context agent review found
+    (2026-10-27): console/src/lib/verifyReceipt.ts's `py_repr_float_ts`
+    fallback candidate (used only when the raw bundle line isn't available,
+    e.g. a receipt body reconstructed from parsed JSON) re-inserts Python-
+    float formatting for an explicit, hand-maintained key set — currently
+    `{'signed_at'}`. The console's primary verification path (the lossless
+    raw-line parser) isn't affected by this — it reads the exact source
+    lexeme and needs no key list at all — but if a new float field is ever
+    added to ReceiptBody without updating that TS set, the *fallback* path
+    would silently stop matching for bodies lacking a raw line. This test
+    makes that change loud instead of silent: fails immediately, naming
+    exactly what to also update in verifyReceipt.ts.
+    """
+    float_fields = {
+        name for name, field in ReceiptBody.model_fields.items() if field.annotation is float
+    }
+    assert float_fields == {"signed_at"}, (
+        f"ReceiptBody's float fields changed to {float_fields!r} — update the "
+        "`new Set([...])` floatKeys argument in "
+        "console/src/lib/verifyReceipt.ts's `py_repr_float_ts` candidate to match."
+    )
