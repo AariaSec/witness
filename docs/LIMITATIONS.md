@@ -61,6 +61,21 @@ what's solid versus what's a placeholder.
   two already-proven scenarios (`escape`, `escape_relay`) are unaffected
   — in both, the detached process is also the one that touches the
   decoy, so corroboration was already present.
+- **`mismatch` no longer compares `read` claims against write-only
+  recorded events** (fixed 2026-10-27, found the same way as the
+  `pgroup_escape` false positive — by actually running the experiment
+  harness, not by inspection). The detector used to union EVERY claimed
+  path, regardless of `ClaimTool`, into one set compared against
+  create/modify `FsEvent`s. A `read` claim's path legitimately never
+  appears there — reads leave no fs trace, by design (the console's own
+  `ClaimDiff` already has an explicit "not observable" status for exactly
+  this). This fired on roughly a quarter of real, harmless control-task
+  sessions in the same batch, every single one explained by the agent
+  reading a pre-existing seed file it never created or modified.
+  `_PATH_WRITING_TOOLS = {write, edit}` now gates which claims contribute
+  to the comparison; `read`/`search`/`shell`/`http`/`other` claims never
+  did (and still don't) assert "I wrote this path," so excluding them
+  from a write-vs-write comparison is a correction, not a loosening.
 - **The `escape`/`escape_relay` integration tests are occasionally flaky**
   — observed 1 failure in 5 full runs. Both spawn real subprocesses and
   depend on `ProcWatcher`'s poll timing and real OS scheduling under

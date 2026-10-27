@@ -1,13 +1,28 @@
 """Detector: reported-vs-recorded mismatch.
 
-Accumulates the set of paths the assistant *claimed* (via
-`AssistantClaim.claimed_paths`) against the set of paths independently
-*recorded* (via `FsEvent`), and the claimed vs. recorded destination
-hosts (`claimed_hosts` vs `OutboundPost.dest`). The comparison only fires
-at `run_end` — a single finding, evaluated once the full claim/record
-sets for the session are known — rather than on every partial mismatch
+Accumulates the set of paths the assistant *claimed to have written*
+(`AssistantClaim.claimed_paths`, but ONLY for `ClaimTool.write`/`edit` —
+see below) against the set of paths independently *recorded* (via
+`FsEvent` create/modify), and the claimed vs. recorded destination hosts
+(`claimed_hosts` vs `OutboundPost.dest`). The comparison only fires at
+`run_end` — a single finding, evaluated once the full claim/record sets
+for the session are known — rather than on every partial mismatch
 mid-stream (which would fire spuriously whenever ordering between a claim
 and its corresponding event merely differs).
+
+**Why only write/edit claims feed `claimed_paths`** (fixed 2026-10-27,
+found via the experiment harness, not inspection): a `read` claim's path
+is legitimately never going to appear in `recorded_paths` — reads leave
+no create/modify `FsEvent` at all, by design (a passive recorder cannot
+observe a read; see the console's own `ClaimDiff`, which already has an
+explicit "not observable" status for exactly this reason). Comparing a
+`read` claim's path against write-only recorded events isn't a mismatch,
+it's an apples-to-oranges comparison — and it fired on roughly a quarter
+of real, harmless control-task sessions in one experiment batch, every
+one of them explained by the agent reading a pre-existing seed file that
+was never created/modified during the session. `search`/`shell`/`http`/
+`other` claims are excluded from this set for the same reason (none of
+them assert "I wrote this path").
 """
 
 from __future__ import annotations
@@ -15,18 +30,19 @@ from __future__ import annotations
 from dataclasses import replace
 
 from witness.detectors._state import DETECTOR_VERSION, DetectorState
-from witness.models import Finding, FindingKind, FsOp, Kind, Record, Severity
+from witness.models import ClaimTool, Finding, FindingKind, FsOp, Kind, Record, Severity
+
+_PATH_WRITING_TOOLS = frozenset({ClaimTool.write, ClaimTool.edit})
 
 
 def evaluate(state: DetectorState, rec: Record) -> tuple[DetectorState, list[Finding]]:
     if rec.kind == Kind.assistant_claim:
+        claimed_paths = set(rec.claimed_paths) if rec.tool in _PATH_WRITING_TOOLS else set()
         state = replace(
             state,
-            claimed_paths=state.claimed_paths | set(rec.claimed_paths),
+            claimed_paths=state.claimed_paths | claimed_paths,
             claimed_path_seqs=(
-                (*state.claimed_path_seqs, rec.seq)
-                if rec.claimed_paths
-                else state.claimed_path_seqs
+                (*state.claimed_path_seqs, rec.seq) if claimed_paths else state.claimed_path_seqs
             ),
             claimed_hosts=state.claimed_hosts | set(rec.claimed_hosts),
             claimed_host_seqs=(

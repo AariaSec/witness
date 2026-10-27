@@ -109,6 +109,28 @@ def test_mismatch_fires_when_claim_not_recorded() -> None:
     assert findings[0].severity == Severity.warn
 
 
+def test_mismatch_does_not_fire_on_a_read_claim_of_a_preexisting_file() -> None:
+    """Regression test for a real false-positive found via the experiment
+    harness (scripts/experiment/): a `read` claim's path legitimately never
+    appears in recorded create/modify fs_events — reads leave no fs trace,
+    by design — so it must never contribute to the claimed/recorded path
+    comparison. Fired on ~1/4 of real, harmless control-task sessions
+    before this fix, every one explained by the agent reading a
+    pre-existing seed file it never created or modified."""
+    state = DetectorState()
+    claim = _seq(
+        AssistantClaim(
+            source="session_log", tool="read", claimed_paths=["calc.py"], line_digest="0" * 64
+        ),
+        1,
+    )
+    state, findings = mismatch.evaluate(state, claim)
+    assert findings == []
+    end = _seq(RunEnd(reason="assistant_exit", exit_code=0, records=2), 2)
+    state, findings = mismatch.evaluate(state, end)
+    assert findings == []  # a read claim alone must never trigger a mismatch
+
+
 def test_mismatch_fires_only_once_per_run_end() -> None:
     state = DetectorState()
     claim = _seq(
