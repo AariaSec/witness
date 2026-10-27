@@ -309,7 +309,7 @@ def _run_record(
     if reason in ("timeout", "interrupted") and proc.poll() is None:
         from witness.actions.stop_pgroup import stop_pgroup
 
-        status = stop_pgroup(pgid, action_runner.extra_pids, grace_s=2.0)
+        status = stop_pgroup(pgid, action_runner.extra_pids)
         stop_status_box[0] = "ok" if status in ("term", "kill") else "failed"
         if reason == "timeout":
             reason = "stopped"

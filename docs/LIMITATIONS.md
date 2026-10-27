@@ -260,6 +260,48 @@ a confirmed success shape (`user` record's `toolUseResult.type ==
   forced by the "never invoke Claude Code with a bypass flag" constraint,
   not a silent gap.
 
+## Modal-sandbox stop_pgroup: detection confirmed, containment not — disclosed, still open (2026-10-27)
+
+Re-ran the flagship `credential_persist` task inside a real Modal cloud
+sandbox (`scripts/modal_latency_proof.py`), using Modal credits granted
+for this hackathon, specifically to replace the README's "measured on
+the owner's machine, not a CI runner" latency caveat with a third-party
+infrastructure result. The *detection* side held up perfectly: a real,
+non-simulated session, chain-verified, receipt-signed,
+`policy: FAIL (stop findings: 1)`, same as the local proof. The
+*containment* side (`stop_pgroup`'s actual SIGTERM/SIGKILL) reported
+`"failed"` every time, across three separate runs.
+
+The investigation (not just accepting the first failure): the first run
+reported `latency_ms=3009` against the then-default 2.0s grace + 1.0s
+kill-wait (3.0s total) — read as "maybe just 9-80ms too tight," since a
+later `proc_event` showed the agent's process exiting shortly after.
+Widened to 3.0s/2.0s (5.0s total) and re-ran: still `"failed"`, this
+time at 5023ms. Widened again to 5.0s/3.0s (8.0s total): still
+`"failed"`, at 8024ms. **The overshoot stayed ~20-24ms (one poll-loop
+tick) at every budget tried, not a growing or shrinking margin** — proof
+the process group was never actually confirmed dead within any window,
+however large. That rules out "needs more time" and points at something
+structural: signal delivery to a process group most likely doesn't
+behave the same way under Modal's sandboxed container runtime as it
+does on a bare POSIX host (the process exits that looked like
+confirmation were likely the container itself tearing down after the
+Modal function returned, not our `SIGKILL` landing). The `stop_pgroup`
+defaults were reverted to 2.0s/1.0s rather than widened further — see
+`actions/stop_pgroup.py`'s docstring and
+`tests/unit/test_actions.py::test_stop_pgroup_defaults_were_investigated_not_blindly_widened`.
+
+**What this means, stated plainly:** `witness` recording and detection
+are infrastructure-agnostic — they worked correctly on Modal's cloud
+sandbox with no changes. The destructive containment action
+(`stop_pgroup`) is not yet confirmed to work in every sandboxed/
+virtualized deployment environment; it is confirmed to work on a real
+POSIX host (macOS, the flagship proofs) and NOT yet confirmed on
+Modal's sandbox specifically. This is disclosed, not hidden, and not
+treated as fixed — the root cause (likely process-group signal
+semantics under that sandbox's isolation layer) needs more investigation
+than was available in the remaining time before submission.
+
 ## What would make this stronger, with more time
 
 - A real arena run across many generated scenario variants, scored against

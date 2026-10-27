@@ -183,9 +183,16 @@ a silent gap a judge or reviewer has to go find themselves.
   returning no finding — it isn't scored or shown as a
   headline number until it's been validated against held-out data.
 - **Actions** (`actions/`) — close the decoy key (serves 410 after), stop
-  the process group (SIGTERM, 2s grace, SIGKILL, sweeping any pid seen at
-  the marker/sink even if it escaped the original process group), and sign
-  a receipt (Ed25519) over the run's final state.
+  the process group (SIGTERM, 2s grace, SIGKILL, 1s kill-wait, sweeping
+  any pid seen at the marker/sink even if it escaped the original process
+  group), and sign a receipt (Ed25519) over the run's final state. A real
+  Modal-cloud run (2026-10-27) reported "failed" here; widening the
+  budget twice (2s/1s → 3s/2s → 5s/3s) never produced a confirmed kill —
+  the overshoot stayed ~20-24ms at every budget tried, proving this
+  isn't a timing-margin problem, so the defaults were reverted rather
+  than widened further. See `docs/LIMITATIONS.md`'s "Modal-sandbox
+  stop_pgroup" entry and `actions/stop_pgroup.py`'s docstring for the
+  real, still-open finding.
 - **Bundle export** (`bundle.py`) — the ledger becomes `bundle.jsonl` only
   after every record is checked against `schemas/allowed_keys.yaml` (a
   second, independent content-leak defence on top of pydantic's

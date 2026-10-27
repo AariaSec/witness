@@ -31,6 +31,27 @@ def test_stop_pgroup_kills_sleeping_child_tree() -> None:
     assert dead, "child process tree should be dead shortly after stop_pgroup"
 
 
+def test_stop_pgroup_defaults_were_investigated_not_blindly_widened() -> None:
+    """2026-10-27: a real Modal-cloud run reported stop_pgroup "failed" at
+    3009ms (the then-default 2.0s grace + 1.0s kill-wait). Widened to
+    3.0s/2.0s (5.0s total) -- still "failed", at 5023ms. Widened again to
+    5.0s/3.0s (8.0s total) -- still "failed", at 8024ms. The overshoot
+    stayed ~20-24ms (one poll tick) at every budget tried, proving the
+    process group was never actually detected dead within ANY window --
+    not a timing-margin problem, so widening further would only waste
+    wall-clock time. Reverted to the original 2.0s/1.0s; see
+    docs/LIMITATIONS.md for the real, still-open finding (signal delivery
+    to a process group likely doesn't work the same way under Modal's
+    sandboxed container runtime). This test exists so a future "just
+    widen it more" fix doesn't get tried again without reading that
+    writeup first."""
+    import inspect
+
+    sig = inspect.signature(stop_pgroup)
+    assert sig.parameters["grace_s"].default == 2.0
+    assert sig.parameters["kill_wait_s"].default == 1.0
+
+
 def test_stop_pgroup_on_already_dead_group_is_noop_success() -> None:
     proc = subprocess.Popen(["true"], preexec_fn=os.setsid)
     pgid = os.getpgid(proc.pid)
