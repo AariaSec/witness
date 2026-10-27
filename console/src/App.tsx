@@ -138,6 +138,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState(false);
+  const [shareMode, setShareMode] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [playT, setPlayT] = useState(0);
@@ -186,6 +187,7 @@ export default function App() {
     const atSeq = seqParam !== null && /^\d+$/.test(seqParam) ? Number(seqParam) : null;
     const sp = Number(qs.get('speed'));
     if ([0.5, 1, 2, 4, 8].includes(sp)) setSpeed(sp);
+    setShareMode(qs.get('view') === 'share');
     fetchBundle(path)
       .then((b) => adopt(b, replay, atSeq))
       .catch((e) => {
@@ -385,6 +387,25 @@ export default function App() {
         {dropOverlay}
         <Landing onPick={() => fileInput.current?.click()} error={error} loading={loading} />
       </div>
+    );
+  }
+
+  if (shareMode) {
+    return (
+      <NavContext.Provider value={nav}>
+        <div className="min-h-screen bg-bg-deep px-8 py-10">
+          <div className="mx-auto max-w-[900px]">
+            <div className="mb-6 flex items-center gap-3">
+              <Logo />
+              <span className="font-mono text-[12px] text-fg-4">The agent's report. The recorder's record. They disagree.</span>
+            </div>
+            <ClaimDiff bundle={bundle} cursor={cursor} />
+            <div className="mt-4 text-center font-mono text-[10.5px] text-fg-5">
+              aariasec.github.io/witness — content-free, independently recorded, every number traces to a seq
+            </div>
+          </div>
+        </div>
+      </NavContext.Provider>
     );
   }
 
