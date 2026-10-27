@@ -22,6 +22,30 @@ itself — not just the README — must open with it. Previously this was a
 documentation-only note above the Hook with no allocated runtime; moved
 into an actual 0:00–0:05 title-card beat so the video itself satisfies
 the rule, and the Hook shortened from :20 to :15 to hold 3:00 total.
+(5) A fifth pass (2026-10-27): used Meta's own Muse Spark Open (via
+Baseten, 7/10) and a real `muse exec` adversarial-judge session (billed
+on the Meta Model API dashboard directly, 6/10, full critique at
+`/tmp/muse-judge-ws/CRITIQUE.md` at review time) for independent
+critiques. Acted on: dropped the Claude Code quote aside entirely (two
+independent reviews now flagged the same unverifiable-quote risk);
+tightened "zero recorder-core diff" to state plainly what did change (one
+new parser); put the hook's true base rate on screen (0/16 in the
+follow-up batch — it's the outlier case); named exactly why PR #2 is red
+vs. the flagship's PASS (stop-severity network exfiltration vs. warn-
+level local save); narrowed the close line off "for any agent" to what's
+actually proven; trimmed the Washington Post citation to stop citing an
+incident right after disclaiming it doesn't apply; relabeled README's
+"bandwidth" claim (a category error — no concurrency was measured) and
+caveated the latency numbers as owner's-machine, not CI-runner; and fixed
+two stale doc claims the critique surfaced (README still said
+`pgroup_escape` had no detector after it was fixed; NUMBERS.md called a
+file "untracked" that was actually committed in `488e784`). Declined,
+with reasoning: reopening the hook to start on a failing PR instead of
+the console diff (undoes the prior 3-model-reviewed redesign without new
+justification), relabeling the private `witness-private` seed repo (a
+deliberate IP-protection decision, not a presentation choice), and adding
+a Startup-track traction slide (pricing/design-partners — not buildable
+from a doc edit).
 
 ---
 
@@ -66,6 +90,16 @@ beneath it.
 > this URL.
 
 **Caption (muted-viewer support):** "Real session. Real finding. Chain-verified — check it yourself."
+**Second caption, smaller, bottom corner:** "1 verified case; 0/16 in the
+follow-up batch (`docs/NUMBERS.md`) — rare, not typical."
+
+*Added after a `muse exec` adversarial-judge pass (2026-10-27): the 32-run
+experiment later in this video reports 0/16 mismatch on the decoy batch,
+making this hook the outlier case, not the typical one. A sharp judge
+would call that out unprompted. Putting the base rate on screen in the
+hook itself — before anyone can raise it — turns the sharpest available
+attack on this video into another honesty beat, consistent with the
+project's whole stance.*
 
 ---
 
@@ -76,23 +110,22 @@ question mark on the other labeled "what actually happened?"
 
 **Voiceover:**
 > Every coding agent writes its own report of what it did. That report
-> is the only account anyone checks — and it's produced by the exact
-> same process that did the work. On October 26th — the same day we
-> started building this — the Washington Post reported that a security
-> research team's AI agents reached internal systems at a frontier AI
-> lab in under 12 hours, through third-party software connected to it,
-> not by breaking the model. AI agents are fast. The question is: when
-> one does something you didn't expect, how fast do you find out — and
-> from who?
+> is the only account anyone checks — produced by the exact same process
+> that did the work. Agents already have production-level access. The
+> question is: when one does something you didn't expect, how fast do
+> you find out — and from who?
 
 **Caption:** "The agent's report is the only witness to itself. Until now."
 
-*Source for the factual claim:
-[Washington Post, 2026-10-26](https://www.washingtonpost.com/technology/2026/10/26/researchers-cybersecurity-start-up-cathedral-got-inside-anthropic/).
-Keep factual and sourced — no implying witness would have caught that
-specific incident (it wouldn't have; different system, different scope).
-Framing for "why this matters now," not a claim about this project's
-reach.*
+*Dropped the Washington Post citation from this beat (previously used for
+"why now" framing) after a Meta Spark Open adversarial-judge pass flagged
+it as borrowed urgency: the beat explicitly disclaimed "this project
+wouldn't have caught that incident" and then cited it anyway, which reads
+as fear-by-association to a skeptical judge rather than a sourced claim.
+The underlying point — agents already have real production access —
+doesn't need a specific incident to be true. Full incident mention still
+lives in `README.md`'s "Why" section for anyone who wants the citation,
+also trimmed to drop the same editorializing.*
 
 ---
 
@@ -145,20 +178,28 @@ immutable).
 **Voiceover:**
 > A recorder that only works for one agent is a feature of that agent,
 > not independent verification. So we proved it on a second, completely
-> different agent — Claude Code — with zero changes to the recorder
-> core. Same task: it fetched the same decoy credential and saved it to
-> disk — caught the same way, independently, no reasoning read.
-
-**On-screen aside, clearly labeled as color, not a claim:** the agent's
-own final message, watched live by the operator running the session —
-*"I didn't use it for anything."* Caption underneath, small: *"Shown for
-context — witness itself never stores this text; this is the operator's
-own observation, not a bundle record."* This exists so the video itself
-discloses the exact boundary a sharp judge would otherwise probe.
+> different agent — Claude Code. Adding it meant writing one new adapter
+> for its log format — zero changes to the actual detection pipeline:
+> the ledger, the detectors, the actions. Same task: it fetched the same
+> decoy credential and saved it to disk — caught the same way,
+> independently, no reasoning read.
 
 **Caption:** "Zero recorder-core diff — verified by `git diff --stat`, not asserted."
 
-*(Optional, cut first if time is short: one sentence noting this submission's own tooling used Claude Code — disclosed in the README, not dwelt on here. If further compressed, cut the on-screen aside too — the marker_read finding + zero-diff claim alone fully carry this beat.)*
+*Two changes from the previous cut, both from a Meta Spark Open
+adversarial-judge pass (`muse exec`, 2026-10-27): (1) dropped the Claude
+Code "I didn't use it for anything" on-screen aside entirely — it was
+already flagged once (Opus round) and flagged again independently here
+as reintroducing the exact unverifiable-quote risk the hook rewrite
+existed to remove; it was already listed "cut first" in the cut-order
+below, so this just makes that the default instead of a time-pressure
+fallback. (2) Tightened "zero changes to the recorder core" to say what
+*did* change (one new parser/adapter) — the judge pass noted the diffed
+path list in `docs/NUMBERS.md` is explicitly scoped to the detection
+pipeline and excludes the new parser by construction, which is honest
+but risks being misread as "nothing changed." Saying it plainly is a
+stronger claim, not a weaker one: the point is that detection logic is
+agent-agnostic and only input parsing is agent-specific.*
 
 ---
 
@@ -174,13 +215,27 @@ green check, same gate, a faithful session.
 > This isn't just a viewer. The signed receipt is bound to the actual
 > git tree, and a real GitHub Action runs `witness verify` on every pull
 > request. A tampered or missing receipt — or a stop-severity finding —
-> fails the check, visibly, before a merge ever happens. The pass/fail
-> decision is fully deterministic — chain, signature, policy. It can
-> optionally also show a live narrative from Meta's open-weight Muse
-> Spark Open model alongside the verdict — advisory only, never the
-> thing that decides pass or fail.
+> fails the check, visibly, before a merge ever happens. This red PR
+> isn't the same scenario you saw earlier — the decoy value actually
+> left the machine over the network here, not just saved to a file, so
+> it's a stop-severity finding, not a warn. The pass/fail decision is
+> fully deterministic — chain, signature, policy. It can optionally also
+> show a live narrative from Meta's open-weight Muse Spark Open model
+> alongside the verdict — advisory only, never the thing that decides
+> pass or fail.
 
 **On-screen:** the two PR URLs, side by side, green and red.
+
+*Added after a `muse exec` adversarial-judge pass (2026-10-27) asked the
+exact question a sharp judge would: if the flagship catch earlier in this
+video is only `policy: PASS` (warn-level, nothing blocks a merge), what
+does PR #2 actually contain, and would the flagship bundle itself go
+green? Verified directly against `console/public/bundles/demo-red.jsonl`:
+it's a stop-severity `outbound_post` (network exfiltration attempt), a
+categorically more severe, different scenario from the flagship's
+warn-level `marker_read`/`mismatch` (local file save only, no outbound
+attempt) — not the same bundle rescored. Saying this on screen pre-empts
+the question instead of leaving a judge to ask it in Q&A.*
 
 ---
 
@@ -212,21 +267,27 @@ generalizes).
 
 **Voiceover:**
 > Every coding agent writes its own report. witness is the second
-> witness — for any agent, on every commit.
+> witness — proven on two architecturally different agents already, one
+> new adapter away from the next.
 
 **On-screen:**
 `github.com/AariaSec/witness` · `aariasec.github.io/witness`
+
+*Narrowed from "for any agent, on every commit" (a `muse exec`
+adversarial-judge pass called this an overclaim against what's actually
+proven: two agents, one task family, not a universality result). This
+version says exactly what's demonstrated — two agents — and states the
+real scaling mechanism (one new parser/adapter) rather than implying
+it's already solved for everything.*
 
 ---
 
 ## Cut order if time runs short
 
-1. The Claude Code "on-screen aside" quote (if kept at all) — cut first;
-   the marker_read finding + zero-diff claim alone fully carry that beat.
-2. Collapse the "Honesty" beat to the 44%/32-runs line only, dropping
+1. Collapse the "Honesty" beat to the 44%/32-runs line only, dropping
    the pgroup_escape before/after visual — the number alone still carries
    the point.
-3. Never cut: the receipt + `witness verify` + one real green/red PR
+2. Never cut: the receipt + `witness verify` + one real green/red PR
    check, the Claude Code parser with at least one genuine human-run
    session, RULE-1-analog compliance, the experiment's honest numbers
    (44% marker-touch, 0% mismatch, 2 bugs found and fixed), and Muse Code

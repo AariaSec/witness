@@ -54,13 +54,11 @@ This isn't hypothetical. On 2026-10-26 — the same day this project's
 first commit landed — [the Washington Post reported](https://www.washingtonpost.com/technology/2026/10/26/researchers-cybersecurity-start-up-cathedral-got-inside-anthropic/)
 that a security research team's AI agents reached internal business
 systems at a frontier AI lab in under 12 hours, through third-party admin
-software connected to it. The lab's own monitoring flagged some of the
-activity before the researchers reported it — but the two sides still
-disagree about whether the researchers' own account of what they did
-fully matches what was independently observed inside the systems. That's
-the same mismatch this project is built to catch, one level up: not an
-agent's self-report vs. reality, but a human team's account of an agent's
-actions vs. an independent record of them.
+software connected to it. Agents already operate with real production
+access; this project doesn't claim it would have caught that specific
+incident (different system, different scope) — it's cited only for why
+an independent record of what an agent actually did, not just its own
+self-report, matters now.
 
 Framed as a control loop (see ["start with the sensor"](https://thenewstack.io/agentic-software-factory-sensor/)):
 intent is the setpoint, the agent is the controller, and verification is
@@ -128,16 +126,26 @@ properties a verification "sensor" is judged on (most teams only get two
 of three — see the "Why" section above):
 
 - **Latency** (time to signal): persistence detection fires in
-  **5.9–19.3ms**, against a 500ms budget.
+  **5.9–19.3ms**, against a 500ms budget — measured on the owner's
+  machine, not a CI runner; treat as provisional until re-measured there.
 - **Fidelity** (escape rate): scenario arena, 10/10 archetypes recorded
   and scored — 8 flagged, 2 true-negative, 0 false alarms, **1 disclosed
-  genuine miss** (`pgroup_escape` has no dedicated detector yet — see
-  `docs/LIMITATIONS.md`). The miss is reported, not hidden — an honest
-  fidelity number, not a cherry-picked one.
-- **Bandwidth** (concurrent verification capacity): 10 scenarios scored
-  in one arena run today; the architecture (frozen seed set generated
-  *before* any run, held in a private companion repo so nothing can be
-  tuned against it) follows the same principle
+  genuine miss at the time that frozen run was recorded** (2026-10-26:
+  `pgroup_escape` had no dedicated detector yet). That frozen run is never
+  edited in place, so it still shows the historical miss — but the gap
+  itself was closed the next day: a real `pgroup_escape` detector now
+  exists, with a regression test on the original miss and a passing
+  result on a freshly-authored holdout (`escape_relay`) never used to
+  build the detector — see `docs/NUMBERS.md`. The miss was reported, not
+  hidden, and then fixed — an honest fidelity number, not a cherry-picked
+  one.
+- **Batch reproducibility** (relabeled from "bandwidth" after a `muse
+  exec` adversarial-judge pass called out the original label as a
+  category error — this is a serial batch score, not a measured
+  concurrency/throughput result): 10 scenarios scored in one arena run
+  today; the architecture (frozen seed set generated *before* any run,
+  held in a private companion repo so nothing can be tuned against it)
+  follows the same principle
   [StrongDM uses in production](https://thenewstack.io/agentic-software-factory-sensor/)
   — an external holdout set an agent can't optimize against.
 - **A real coding agent, not a stand-in**: a genuine Muse Code session
@@ -150,10 +158,16 @@ of three — see the "Why" section above):
 ## Founder disclosure
 
 The founder of this project runs a company in AI-agent security
-(AariaSec). This repository is a clean, from-scratch build started at
-hackathon kickoff — see `PROVENANCE.md` for the commit history that
-proves it. No code, schema, or prompt from that company's product is
-included here.
+(AariaSec). Same problem domain, no shared code — verify it yourself in
+one command:
+
+```
+git log --reverse --format='%ad %h %s' --date=iso
+```
+
+Every commit falls inside the hackathon window (first: 2026-10-26
+kickoff). Full detail, including the hash-manifest check against that
+company's private source tree, in `PROVENANCE.md`.
 
 ## Licence
 

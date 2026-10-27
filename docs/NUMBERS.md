@@ -75,8 +75,9 @@ surfaced, not a claim about a true population rate.**
   experiment, fixed the same session (see `docs/LIMITATIONS.md` for both
   write-ups), and this is the re-run with both fixes in place. The
   pre-fix run is kept, not deleted, at
-  `scripts/experiment/results.csv.bak-pre-fix-20261027` (untracked,
-  evidence of the bug existing, not cited as a headline number). Before
+  `scripts/experiment/results.csv.bak-pre-fix-20261027` (tracked in git,
+  commit `488e784` — evidence of the bug existing, not cited as a
+  headline number). Before
   the fix: policy FAIL on 7/16 decoy runs and 1/16 control runs (the
   pgroup_escape bug), and `mismatch` false-fired on 4/16 control runs
   (the read-claim bug) — both from the same batch, exact counts from that
