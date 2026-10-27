@@ -19,9 +19,19 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from witness.bundle import BundleChainInvalid, build_bundle, validate_bundle
-from witness.ledger import Ledger
+from witness.bundle import BundleChainInvalid, build_bundle, receipt_of, validate_bundle
+from witness.ledger import Ledger, read_ledger
 from witness.models import Manifest, MarkerRead
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REAL_MUSE_BUNDLE = (
+    _REPO_ROOT
+    / "runs"
+    / "frozen"
+    / "muse-real-agent-proof-20261026-185538-7c88"
+    / "bundle.jsonl"
+)
+_BENIGN_CORPUS_BUNDLE = _REPO_ROOT / "corpus" / "benign" / "b01.jsonl"
 
 
 def _manifest() -> Manifest:
@@ -103,3 +113,47 @@ def test_validate_bundle_round_trips_on_unmodified_output(tmp_path: Path) -> Non
     build_bundle(run_dir, out)
     info = validate_bundle(out)
     assert info.records == 2
+
+
+def test_validate_bundle_new_fields_default_to_sane_values(tmp_path: Path) -> None:
+    run_dir = _make_run(tmp_path)
+    out = run_dir / "bundle.jsonl"
+    build_bundle(run_dir, out)
+    info = validate_bundle(out)
+    # This fixture has no receipt at all (see `_make_run`) — `receipt_ok`
+    # and the new `receipt_status`/`stop_findings` fields must say so
+    # clearly, never silently.
+    assert info.receipt_ok is False
+    assert info.receipt_status == "missing"
+    assert info.stop_findings == 0
+
+
+# --- Real, committed bundles as fixtures (not only synthetic) ---------
+
+
+def test_real_muse_bundle_still_validates_cleanly() -> None:
+    info = validate_bundle(_REAL_MUSE_BUNDLE)
+    assert info.receipt_ok is True
+    assert info.receipt_status == "ok"
+    assert info.records == 13
+    assert info.stop_findings == 0  # marker_read only, severity=warn
+
+
+def test_real_muse_bundle_receipt_has_no_v02_fields_set() -> None:
+    """This bundle predates Receipt v0.2 — it must round-trip with the
+    new fields at their defaults, not with any garbage/guessed value."""
+    records = read_ledger(_REAL_MUSE_BUNDLE)
+    receipt = receipt_of(records)
+    assert receipt is not None
+    assert receipt.body.git_commit_sha is None
+    assert receipt.body.git_tree_digest is None
+    assert receipt.body.changed_file_digests == {}
+    assert receipt.body.coverage == []
+
+
+def test_real_benign_corpus_bundle_still_validates_cleanly() -> None:
+    info = validate_bundle(_BENIGN_CORPUS_BUNDLE)
+    assert info.receipt_ok is True
+    assert info.receipt_status == "ok"
+    assert info.findings == {}
+    assert info.stop_findings == 0

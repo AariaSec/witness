@@ -232,3 +232,109 @@ placeholder, not the operator's actual `claude` process tree, so
 process-level detectors (e.g. `pgroup_escape`) are blind in this mode.
 Filesystem and decoy marker/sink ground truth are unaffected (they watch
 `--lab` and local ports, not a process tree). See `docs/LIMITATIONS.md`.
+
+## Receipt v0.2 / CI gate: binding the receipt to a git tree (added 2026-10-27)
+
+Everything above proves witness can faithfully record and sign what an
+agent did. This section is the next step: turning that signed receipt
+into something a CI pipeline can actually gate a pull request on — "the
+merge gate for code no human fully reads," not just a forensic viewer
+opened after the fact.
+
+**Schema change, additive only.** `ReceiptBody` (`models.py`) gained four
+OPTIONAL fields, every one defaulting to `None`/`{}`/`[]`:
+
+- `git_commit_sha` — best-effort `git rev-parse HEAD` against the lab
+  directory (`gittree.git_commit_sha`). `None` whenever the lab directory
+  isn't a git repository at all — the common case, since most lab
+  directories are disposable tmp dirs. Never required, never fails a run.
+- `git_tree_digest` — sha256 of the canonical, sorted
+  `[relative_path, file_sha256]` pair list for every regular file present
+  under the lab directory at receipt-signing time (`.git/` excluded).
+  This is a **snapshot**, not a strict pre/post-session diff: for a fresh
+  per-session lab directory (the common case) that's equivalent to "every
+  file the session touched"; for a lab directory reused across sessions
+  (e.g. `record-claude` pointed at a real checkout the operator already
+  had), pre-existing files are included too. Stated honestly rather than
+  oversold — see `changed_file_digests` below for what this is actually
+  useful for regardless.
+- `changed_file_digests` — the `{relative_path: sha256}` map
+  `git_tree_digest` is computed FROM, so a verifier can check a single
+  file's coverage without recomputing the whole tree digest.
+- `coverage` — which watchers (`fs`/`marker`/`sink`/`proc`) were genuinely
+  active for this run. `record`/`record-muse`/`demo`/`arena` all get the
+  full four; `record-claude` is the one caller that omits `proc` (its
+  `ProcWatcher` watches a placeholder process, not the operator's real
+  `claude` process tree — see that command's own docstring). This is the
+  mechanism that makes "no finding" read as "not seen by active sensors,"
+  never as "nothing happened."
+
+**Why this didn't break every already-frozen receipt.** A receipt signed
+before these fields existed never had these keys in its on-disk bytes.
+Parsing it through the current schema fills them in with the defaults
+above — which would silently change both the Ed25519 signature's input
+and the hash-chain digest's input for every pre-v0.2 receipt, breaking
+`witness verify` on everything under `runs/frozen/` and `corpus/benign/`
+the moment this landed (caught during this change's own test pass, not
+shipped and found later). The fix: `ReceiptBody.canonical_payload()`
+(`models.py`) strips a v0.2 field from the dump whenever it's exactly at
+its just-added default, before that dump is hashed or signed —
+`strip_receipt_body_v02_defaults` is the single shared implementation
+`actions/receipt.py` (the Ed25519 signature) and `ledger.py` (the
+hash-chain digest) both call, so the two digest schemes can never
+silently diverge on this. A receipt that genuinely sets any of these
+fields keeps them in the hashed/signed payload — only the at-default case
+reproduces the old, pre-v0.2 bytes.
+
+**`witness verify`, substantially extended** (`cli.py`), fully backward
+compatible with every existing bundle:
+
+```
+witness verify <bundle.jsonl> [--against-tree <dir>]
+```
+
+Still does the original chain + whitelist + signature re-verify first,
+then adds two new checks, each independently gate-able:
+
+1. **A small built-in policy check** — not a new rules engine, a verdict
+   over findings the detectors already produced: FAIL if any `Finding`
+   with `severity == "stop"` fired (e.g. the decoy-credential catch),
+   PASS otherwise.
+2. **`--against-tree <dir>`** — walks `<dir>` with the same per-file
+   digest scheme, and classifies every file actually present there
+   against the receipt's `changed_file_digests`: `covered` (digest
+   matches), `modified` (path known, digest differs — edited after the
+   session), or `unattested` (no covering receipt entry at all). A
+   pre-v0.2 bundle has an empty `changed_file_digests`, so every file
+   reads `unattested` against this check — an honest "this bundle never
+   attested to a git tree," not a crash and not a silent pass.
+
+Exit codes, each distinct and documented (never a silent pass): `0` OK,
+`1` hash chain invalid, `2` posture fail (policy and/or tree check),
+`3` leak-scan/whitelist violation, `4` receipt missing or signature
+invalid. See `cli.py`'s `verify` command docstring for the authoritative
+table.
+
+**Adversarial coverage** (`tests/unit/test_cli_verify.py`): byte-flipped
+signed body, wrong public key, a truncated chain, reordered records, a
+missing receipt, a file modified after the session, and a file the
+receipt never attested to — each produces its own distinct, non-zero
+exit. The byte-flip and wrong-key cases specifically recompute the
+record's own hash-chain digest after tampering (reusing `ledger.py`'s
+internal `_record_digest`) so the test isolates "does the signature catch
+this" from "does the chain catch this" — the hash chain alone, with no
+external signing key, can never catch a self-consistent tamper; that's
+exactly what the Ed25519 signature is for.
+
+**GitHub Action** (`.github/actions/witness-verify/action.yml`) wraps
+`witness verify` as a composite action: installs the package, runs
+`witness verify` (optionally with `--against-tree`), and publishes the
+same content-free stdout (counts, enums, digests, and relative paths —
+never a prompt, a response, a file's contents, or a finding's underlying
+evidence text) to the job's step summary and as action outputs
+(`result`: pass/fail, `exit-code`). `.github/workflows/witness-check.yml`
+wires it to `pull_request`, scoped narrowly to PRs that actually touch a
+committed `runs/frozen/**/bundle.jsonl` — not every PR to this repo. This
+repo had no `.github/workflows/` directory before this change; a human
+should sanity-check the trigger condition before it's ever merged to
+`main`.

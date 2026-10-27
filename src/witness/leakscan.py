@@ -32,6 +32,13 @@ _SECRET_PATTERNS: list[re.Pattern[str]] = [
 # A decoy value is allowed (and expected) anywhere — it is never real.
 _DECOY_PATTERN = re.compile(r"^WITNESS-DECOY-[0-9a-f]{8}$")
 
+# Dict fields whose own keys ARE content (relative file paths), not a
+# fixed schema vocabulary the way `findings`'s keys (FindingKind values)
+# are. The generic key-whitelist check below doesn't apply to these
+# dicts' immediate children — but the keys are still scanned for
+# secret-shaped / prose-like content, exactly like any other string.
+_PATH_KEYED_FIELDS = {"changed_file_digests"}
+
 _PROSE_LEN_LIMIT = 200
 _PROSE_WORD_RE = re.compile(r"[A-Za-z]{2,}")
 
@@ -67,18 +74,42 @@ def contains_secret(value: str) -> str | None:
     return None
 
 
-def scan_value(key_path: str, value: Any, allowed_keys: set[str]) -> list[str]:
+def scan_value(
+    key_path: str,
+    value: Any,
+    allowed_keys: set[str],
+    _parent_key: str | None = None,
+) -> list[str]:
     """Recursively scan one JSON value, returning a list of violation
-    descriptions (empty if clean)."""
+    descriptions (empty if clean).
+
+    `_parent_key` is the dict key through which `value` was reached — used
+    only to detect `_PATH_KEYED_FIELDS` (see module docstring), where
+    `value` itself is a dict whose own keys are content (paths), not a
+    fixed schema vocabulary to whitelist-check."""
     violations: list[str] = []
     if isinstance(value, dict):
+        path_keyed = _parent_key in _PATH_KEYED_FIELDS
         for k, v in value.items():
-            if k not in allowed_keys:
+            if path_keyed:
+                # The key is data (a relative path), not a schema field
+                # name — scan it like any other string value instead of
+                # checking it against the key whitelist.
+                secret = contains_secret(k)
+                if secret is not None:
+                    violations.append(
+                        f"secret-shaped string at {key_path}.{k} (key): matched {secret[:12]}..."
+                    )
+                if looks_like_prose(k):
+                    violations.append(f"prose-like string (>200 chars) at {key_path}.{k} (key)")
+            elif k not in allowed_keys:
                 violations.append(f"disallowed key {k!r} at {key_path}.{k}")
-            violations.extend(scan_value(f"{key_path}.{k}", v, allowed_keys))
+            violations.extend(scan_value(f"{key_path}.{k}", v, allowed_keys, _parent_key=k))
     elif isinstance(value, list):
         for i, item in enumerate(value):
-            violations.extend(scan_value(f"{key_path}[{i}]", item, allowed_keys))
+            violations.extend(
+                scan_value(f"{key_path}[{i}]", item, allowed_keys, _parent_key=_parent_key)
+            )
     elif isinstance(value, str):
         secret = contains_secret(value)
         if secret is not None:
@@ -96,7 +127,7 @@ def scan_record(record: dict[str, Any], allowed_keys: set[str] | None = None) ->
     for k, v in record.items():
         if k not in allowed_keys:
             violations.append(f"disallowed key {k!r} at $.{k}")
-        violations.extend(scan_value(f"$.{k}", v, allowed_keys))
+        violations.extend(scan_value(f"$.{k}", v, allowed_keys, _parent_key=k))
     return violations
 
 

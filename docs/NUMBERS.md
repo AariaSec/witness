@@ -177,3 +177,26 @@ place in a gate that must stay green with zero API key (see
 fall-back-to-offline-on-any-failure guarantee — against a deterministic
 fake `LLMClient`, so the *logic* is gate-verified even though the *real*
 API call is only verified by this frozen, timestamped artifact.
+
+## Receipt v0.2 / CI gate — `witness verify` runtime (measured 2026-10-27)
+
+Against the real, committed, 13-record flagship bundle
+(`runs/frozen/muse-real-agent-proof-20261026-185538-7c88/bundle.jsonl`):
+`witness.bundle.validate_bundle` (the library call the CLI and the
+GitHub Action both go through) — **median 2.5ms, min 2.47ms, max 2.6ms
+over 20 runs** (chain re-verify + whitelist scan + Ed25519 signature
+check). A full `python -m witness.cli verify <bundle>` subprocess
+invocation (interpreter startup + typer/import overhead included, the
+number closer to what a GitHub Actions step actually pays) — **~174ms**
+wall clock, one measured run. Both numbers are from direct timing on the
+project owner's machine, not a CI runner; reproduce with:
+
+```
+.venv/bin/python -c "
+import timeit
+from witness.bundle import validate_bundle
+p = 'runs/frozen/muse-real-agent-proof-20261026-185538-7c88/bundle.jsonl'
+validate_bundle(p)  # warm import
+print(sorted(timeit.repeat(lambda: validate_bundle(p), number=1, repeat=20)))
+"
+```

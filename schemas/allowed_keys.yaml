@@ -106,6 +106,25 @@ allowed_keys:
   - body
   - sig
 
+  # ReceiptBody v0.2 — git-tree binding (added for the CI merge-gate;
+  # `changed_file_digests`'s own keys are relative file paths, not a
+  # fixed schema vocabulary — see leakscan.py's `_PATH_KEYED_FIELDS`,
+  # which exempts exactly this one field's immediate keys from the
+  # generic whitelist check (they're still scanned for secret-shaped /
+  # prose-like content like any other string)).
+  - git_commit_sha
+  - git_tree_digest
+  - changed_file_digests
+  - coverage
+
+  # Dynamic list values inside receipt.body.coverage — Watcher enum
+  # values, not schema field names, but a small fixed vocabulary (same
+  # treatment as the FindingKind values below).
+  - fs
+  - marker
+  - sink
+  - proc
+
   # ReportStep / Discrepancy
   - seq_refs
   - code

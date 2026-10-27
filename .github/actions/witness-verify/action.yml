@@ -1,0 +1,77 @@
+name: "witness verify"
+description: >-
+  Runs `witness verify` against a signed session receipt bundle and
+  (optionally) a changed-file tree, and publishes a content-free summary
+  (counts, enums, and digests only — never a prompt, a response, a file's
+  contents, or a finding's underlying evidence text) to the job's step
+  summary and outputs. This is the CI merge-gate: a `fail` result means
+  either the receipt itself doesn't check out (tamper, wrong key,
+  missing), or the built-in policy check fired (a stop-severity finding),
+  or `--against-tree` found a file the receipt never attested to.
+inputs:
+  bundle-path:
+    description: "Path to the bundle.jsonl to verify (e.g. runs/frozen/<run_id>/bundle.jsonl)"
+    required: true
+  against-tree:
+    description: >-
+      Directory to cross-check against the receipt's attested git-tree
+      coverage (Receipt v0.2's body.changed_file_digests), passed through
+      to `witness verify --against-tree`. Leave empty to skip the tree
+      cross-check and only verify chain/signature/policy.
+    required: false
+    default: ""
+  python-version:
+    description: "Python version to set up for `pip install -e .`"
+    required: false
+    default: "3.11"
+outputs:
+  result:
+    description: "'pass' or 'fail'"
+    value: ${{ steps.verify.outputs.result }}
+  exit-code:
+    description: "the raw exit code `witness verify` returned (see docs/ARCHITECTURE.md)"
+    value: ${{ steps.verify.outputs.exit_code }}
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install witness
+      shell: bash
+      run: pip install -e "${{ github.action_path }}/../../.."
+
+    - name: Run witness verify
+      id: verify
+      shell: bash
+      run: |
+        set +e
+        if [ -n "${{ inputs.against-tree }}" ]; then
+          OUTPUT="$(witness verify "${{ inputs.bundle-path }}" --against-tree "${{ inputs.against-tree }}" 2>&1)"
+        else
+          OUTPUT="$(witness verify "${{ inputs.bundle-path }}" 2>&1)"
+        fi
+        EXIT_CODE=$?
+        set -e
+
+        echo "$OUTPUT"
+
+        if [ "$EXIT_CODE" -eq 0 ]; then
+          RESULT=pass
+        else
+          RESULT=fail
+        fi
+        echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+        echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+        {
+          echo "### witness verify — $RESULT (exit $EXIT_CODE)"
+          echo ""
+          echo '```'
+          echo "$OUTPUT"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        exit "$EXIT_CODE"

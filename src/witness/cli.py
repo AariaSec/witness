@@ -40,6 +40,7 @@ from witness.bundle import (
     BundleChainInvalid,
     BundleQuarantined,
     build_bundle,
+    receipt_of,
     validate_bundle,
 )
 from witness.bus import EventBus
@@ -48,14 +49,17 @@ from witness.claude_journal import ClaudeCodeClaimParser
 from witness.config import RecordConfig
 from witness.detectors import DetectorState
 from witness.detectors import evaluate as detectors_evaluate
-from witness.ledger import Ledger
+from witness.gittree import compute_file_digests, git_commit_sha, tree_digest_of
+from witness.ledger import Ledger, read_ledger
 from witness.listeners.fswatch import FsWatcher
 from witness.listeners.marker import MarkerService
 from witness.listeners.procwatch import ProcWatcher
 from witness.listeners.sink import Sink
-from witness.models import ActionResult, Finding, Manifest, ReceiptBody, RunEnd
+from witness.models import ActionResult, Finding, Manifest, ReceiptBody, RunEnd, Watcher
 from witness.muse_journal import MuseJournalClaimParser
 from witness.tailer import ClaimParser, Tailer
+
+_DEFAULT_COVERAGE: list[Watcher] = [Watcher.fs, Watcher.marker, Watcher.sink, Watcher.proc]
 
 app = typer.Typer(
     add_completion=False,
@@ -96,6 +100,7 @@ def _run_record(
     tail_paths: list[Path] | None = None,
     tail_parser: ClaimParser | None = None,
     extra_env: dict[str, str] | None = None,
+    coverage: list[Watcher] | None = None,
 ) -> Path:
     """Core `record` orchestration. Returns the run directory.
 
@@ -107,6 +112,14 @@ def _run_record(
     with `MuseJournalClaimParser` instead. `extra_env` is merged into the
     assistant's environment on top of `WITNESS_MARKER_URL`/`WITNESS_SINK_URL`
     (e.g. `META_API_KEY`) — never logged, never persisted anywhere.
+
+    `coverage` (Receipt v0.2) declares which watchers were genuinely
+    active for THIS run and gets signed into `ReceiptBody.coverage` —
+    defaults to all four (`fs`, `marker`, `sink`, `proc`), true for every
+    existing caller (`record`, `record-muse`, `demo`, `arena`) since they
+    all spawn the real assistant process `ProcWatcher` watches.
+    `record-claude` is the one caller that overrides this to omit `proc`
+    (see its own docstring for why).
     """
     run_id = _run_id()
     run_dir = out_runs_dir / run_id
@@ -288,6 +301,10 @@ def _run_record(
         )
     )
 
+    # Receipt v0.2 — best-effort git-tree binding, never fails the run.
+    # Most lab directories are disposable tmp dirs (not a git repo at
+    # all), so this degrades gracefully to None/{} in the common case.
+    changed_file_digests = compute_file_digests(lab)
     body = ReceiptBody(
         run_id=run_id,
         final_digest=ledger.final_digest or "",
@@ -297,6 +314,10 @@ def _run_record(
         policy_hash=_policy_hash(),
         signed_at=time.time(),
         pubkey=signer.public_key_b64,
+        git_commit_sha=git_commit_sha(lab),
+        git_tree_digest=tree_digest_of(changed_file_digests),
+        changed_file_digests=changed_file_digests,
+        coverage=coverage if coverage is not None else _DEFAULT_COVERAGE,
     )
     receipt = action_runner.sign_receipt(body)
     ledger.append(receipt)
@@ -490,6 +511,10 @@ def record_claude(
         runs_dir,
         tail_paths=[session_log],
         tail_parser=ClaudeCodeClaimParser(),
+        # `proc` deliberately omitted: ProcWatcher watches this command's
+        # own placeholder process, not the operator's real `claude`
+        # process tree — see this function's own docstring.
+        coverage=[Watcher.fs, Watcher.marker, Watcher.sink],
     )
     typer.echo(f"recorded: {run_dir}")
     typer.echo(f"tailed real Claude Code session log: {session_log}", err=True)
@@ -523,20 +548,119 @@ def bundle(
     typer.echo(f"bundle written: {out_path} ({info.records} records, receipt_ok={info.receipt_ok})")
 
 
+# `witness verify` exit codes — each one a distinct, documented meaning,
+# never a silent pass (see the command's own docstring for the full
+# table). 0 is the only "everything's fine" outcome.
+VERIFY_EXIT_OK = 0
+VERIFY_EXIT_CHAIN_INVALID = 1
+VERIFY_EXIT_POSTURE_FAIL = 2  # policy fail and/or --against-tree found modified/unattested
+VERIFY_EXIT_LEAK_VIOLATION = 3
+VERIFY_EXIT_RECEIPT_INVALID = 4  # missing receipt OR signature doesn't verify
+
+
+def _tree_check_report(
+    changed_file_digests: dict[str, str], against_tree: Path
+) -> tuple[int, int, int, list[tuple[str, str]]]:
+    """Walk `against_tree` with the same per-file digest scheme the
+    receipt used, and classify every file actually present there against
+    `changed_file_digests` (the receipt's own `body.changed_file_digests`).
+
+    Returns `(covered, modified, unattested, details)` where `details` is
+    a list of `(status, relative_path)` for every non-`covered` file,
+    sorted by path — content-free: just an enum and a path, never file
+    contents."""
+    present = compute_file_digests(against_tree)
+    covered = modified = unattested = 0
+    details: list[tuple[str, str]] = []
+    for path in sorted(present):
+        digest = present[path]
+        if path not in changed_file_digests:
+            unattested += 1
+            details.append(("unattested", path))
+        elif changed_file_digests[path] != digest:
+            modified += 1
+            details.append(("modified", path))
+        else:
+            covered += 1
+    return covered, modified, unattested, details
+
+
 @app.command()
-def verify(bundle_path: Path = typer.Argument(..., help="bundle.jsonl to verify")) -> None:
-    """Re-verify an existing bundle.jsonl (schema + whitelist + chain + receipt)."""
+def verify(
+    bundle_path: Path = typer.Argument(..., help="bundle.jsonl to verify"),
+    against_tree: Path | None = typer.Option(
+        None,
+        "--against-tree",
+        help="directory to cross-check against the receipt's attested "
+        "coverage (Receipt v0.2's body.changed_file_digests) — every file "
+        "actually present under this directory is reported covered "
+        "(digest matches), modified (path known, digest differs), or "
+        "unattested (no covering receipt entry at all)",
+    ),
+) -> None:
+    """Re-verify an existing bundle.jsonl: schema + whitelist + chain +
+    receipt signature, a small built-in policy check, and (with
+    `--against-tree`) a file-coverage cross-check against the receipt's
+    Receipt-v0.2 git-tree binding.
+
+    Fully backward compatible: a bundle with none of the v0.2 fields
+    (every bundle committed before this command existed, e.g. everything
+    under `runs/frozen/` and `corpus/benign/`) verifies exactly as before
+    — `changed_file_digests` defaults to `{}`, so `--against-tree` simply
+    reports every present file as `unattested` rather than crashing or
+    silently passing (an explicit, correct answer: this older bundle
+    never attested to a git tree at all).
+
+    Exit codes (each one distinct and documented — never a silent pass):
+      0  OK — chain/whitelist/receipt-signature valid, policy pass, and
+         (if --against-tree given) zero modified/unattested files
+      1  hash chain invalid (tamper, truncation, or reordering)
+      2  posture fail — a stop-severity finding fired (policy check), or
+         --against-tree found a modified/unattested file
+      3  leak-scan / key-whitelist violation
+      4  no receipt record present, or its signature does not verify
+    """
     try:
         info = validate_bundle(bundle_path)
     except BundleQuarantined as exc:
         typer.echo(f"INVALID: {len(exc.violations)} leak-scan violation(s)", err=True)
-        raise typer.Exit(code=3) from exc
+        raise typer.Exit(code=VERIFY_EXIT_LEAK_VIOLATION) from exc
     except BundleChainInvalid as exc:
         typer.echo(f"INVALID: hash chain broken at seq={exc.first_bad_seq}", err=True)
-        raise typer.Exit(code=1) from exc
+        raise typer.Exit(code=VERIFY_EXIT_CHAIN_INVALID) from exc
+
+    if info.receipt_status != "ok":
+        reason = "no receipt record present" if info.receipt_status == "missing" else (
+            "signature verification failed"
+        )
+        typer.echo(f"INVALID: {reason}", err=True)
+        raise typer.Exit(code=VERIFY_EXIT_RECEIPT_INVALID)
+
     typer.echo(
         f"OK: {info.records} records, findings={info.findings}, receipt_ok={info.receipt_ok}"
     )
+
+    policy_pass = info.stop_findings == 0
+    typer.echo(f"policy: {'PASS' if policy_pass else 'FAIL'} (stop findings: {info.stop_findings})")
+
+    tree_fail = False
+    if against_tree is not None:
+        records = read_ledger(bundle_path)
+        receipt = receipt_of(records)
+        assert receipt is not None  # guaranteed by receipt_status == "ok" above
+        covered, modified, unattested, details = _tree_check_report(
+            dict(receipt.body.changed_file_digests), Path(against_tree)
+        )
+        typer.echo(
+            f"tree check ({against_tree}): covered={covered} modified={modified} "
+            f"unattested={unattested}"
+        )
+        for status, path in details:
+            typer.echo(f"  {status}: {path}")
+        tree_fail = modified > 0 or unattested > 0
+
+    if not policy_pass or tree_fail:
+        raise typer.Exit(code=VERIFY_EXIT_POSTURE_FAIL)
 
 
 @app.command()

@@ -23,14 +23,25 @@ from pathlib import Path
 from pydantic import BaseModel, TypeAdapter
 
 from witness.canon import canonical_json, sha256_hex
-from witness.models import Record
+from witness.models import Record, strip_receipt_body_v02_defaults
 
 _RecordAdapter: TypeAdapter[Record] = TypeAdapter(Record)
+
+
+def _strip_default_v02_fields(payload: dict[str, object]) -> None:
+    """Apply `strip_receipt_body_v02_defaults` to `payload["body"]` in
+    place, if present — a no-op for every record kind except `receipt`.
+    See that function's docstring in `models.py` for why this must run
+    before hashing any record for the chain digest."""
+    body = payload.get("body")
+    if isinstance(body, dict):
+        strip_receipt_body_v02_defaults(body)
 
 
 def _record_digest(rec: BaseModel, prev: str | None) -> str:
     payload = rec.model_dump(mode="json")
     payload.pop("digest", None)
+    _strip_default_v02_fields(payload)
     prev_bytes = prev.encode("utf-8") if prev else b""
     return sha256_hex(prev_bytes + canonical_json(payload))
 

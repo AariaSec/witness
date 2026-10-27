@@ -16,7 +16,7 @@ without updating `schemas/allowed_keys.yaml` and bumping
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -91,6 +91,10 @@ RelPath = Annotated[str, StringConstraints(max_length=256, pattern=r"^[^\n\r]*$"
 # a decoy destination — bounded, single-line, never a vehicle for request
 # bodies or prose.
 HostStr = Annotated[str, StringConstraints(max_length=255, pattern=r"^[^\n\r]*$")]
+
+# A git commit sha — 40 hex chars (sha1) or 64 hex chars (sha256 git) —
+# bounded, single-line, never a vehicle for prose.
+GitSha = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$|^[0-9a-f]{64}$")]
 
 
 class Base(BaseModel):
@@ -212,7 +216,77 @@ class RunEnd(Base):
     records: int
 
 
+# Receipt v0.2 fields, keyed to their own just-added default value. A
+# receipt signed/chained BEFORE these fields existed never had these keys
+# in its canonicalized bytes at all; once parsed through the current
+# schema, pydantic fills them in with these defaults, which would
+# otherwise silently change the canonical JSON (and therefore both the
+# Ed25519 signature and the hash-chain digest) recomputed over it for
+# every pre-v0.2 receipt ever frozen. `strip_receipt_body_v02_defaults`
+# removes a key only when it's exactly at this default, reproducing the
+# original canonical payload byte-for-byte for an old receipt — while a
+# receipt that genuinely sets any of these (real git-tree data, real
+# coverage) keeps that field in the hashed/signed payload, so it's still
+# cryptographically bound. Used by both `actions/receipt.py` (signature)
+# and `ledger.py` (chain digest) so the two digest schemes can never
+# silently diverge on this. See `docs/ARCHITECTURE.md`'s "Receipt v0.2 /
+# CI gate" section.
+_RECEIPT_BODY_V02_DEFAULTS: dict[str, Any] = {
+    "git_commit_sha": None,
+    "git_tree_digest": None,
+    "changed_file_digests": {},
+    "coverage": [],
+}
+
+
+def strip_receipt_body_v02_defaults(body_payload: dict[str, Any]) -> dict[str, Any]:
+    """Remove any Receipt v0.2 field from an already-`model_dump`ed
+    `ReceiptBody` payload when it's exactly at its just-added default.
+    Mutates `body_payload` in place; also returns it, for chaining."""
+    for key, default in _RECEIPT_BODY_V02_DEFAULTS.items():
+        if body_payload.get(key, default) == default:
+            body_payload.pop(key, None)
+    return body_payload
+
+
+class Watcher(StrEnum):
+    """One entry in `ReceiptBody.coverage` — a watcher that was actually
+    active for this run. A small, fixed vocabulary (like `FindingKind`),
+    not free text: this is what makes "no finding" legible as "not seen by
+    active sensors" rather than "nothing happened." See
+    `ReceiptBody.coverage`'s own docstring."""
+
+    fs = "fs"
+    marker = "marker"
+    sink = "sink"
+    proc = "proc"
+
+
 class ReceiptBody(BaseModel):
+    """v0.2 adds four OPTIONAL, additive fields binding the receipt to a
+    git tree (see module docstring: schema is an extension, never a
+    breaking change — every existing construction call site and every
+    pre-v0.2 bundle round-trips unmodified):
+
+    - `git_commit_sha` / `git_tree_digest`: best-effort git-tree binding,
+      `None` when the lab directory isn't inside a git repository (the
+      common case — most lab directories are disposable tmp dirs). Never
+      required, never fails a run to compute.
+    - `changed_file_digests`: the per-file `{relative_path: sha256}` map
+      that `git_tree_digest` is the canonical digest OF — so a verifier
+      can check a single file's coverage without recomputing the whole
+      tree digest. Snapshot semantics: every regular file present under
+      the lab directory at receipt-signing time (excluding `.git/`), not
+      a strict pre/post session diff — see `docs/ARCHITECTURE.md`'s
+      "Receipt v0.2 / CI gate" section for why that's still an honest
+      coverage statement for a lab directory that's fresh per session.
+    - `coverage`: which watchers (`Watcher`) were active for this run —
+      e.g. `record`/`record-muse` have all four; `record-claude` never
+      includes `proc` (its `ProcWatcher` watches a placeholder process,
+      not the real agent's process tree — see `claude_journal.py` /
+      `cli.py`'s `record_claude` docstring).
+    """
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     run_id: str
@@ -223,6 +297,18 @@ class ReceiptBody(BaseModel):
     policy_hash: Digest
     signed_at: float
     pubkey: str
+    git_commit_sha: GitSha | None = None
+    git_tree_digest: Digest | None = None
+    changed_file_digests: dict[RelPath, Digest] = Field(default_factory=dict)
+    coverage: list[Watcher] = Field(default_factory=list)
+
+    def canonical_payload(self) -> dict[str, Any]:
+        """`model_dump(mode="json")` with any at-default Receipt v0.2
+        field stripped (see `strip_receipt_body_v02_defaults`) — the
+        exact bytes both the Ed25519 signature and the hash-chain digest
+        are computed over. Always use this, never a raw `model_dump`,
+        anywhere a `ReceiptBody` is signed, verified, or chain-digested."""
+        return strip_receipt_body_v02_defaults(self.model_dump(mode="json"))
 
 
 class Receipt(Base):
@@ -288,6 +374,7 @@ __all__ = [
     "FindingKind",
     "FsEvent",
     "FsOp",
+    "GitSha",
     "HostStr",
     "Kind",
     "Manifest",
@@ -304,4 +391,6 @@ __all__ = [
     "RunEnd",
     "Severity",
     "TailMeta",
+    "Watcher",
+    "strip_receipt_body_v02_defaults",
 ]

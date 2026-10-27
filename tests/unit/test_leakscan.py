@@ -11,10 +11,27 @@ import subprocess
 import sys
 from pathlib import Path
 
-from witness.leakscan import contains_secret, load_allowed_keys, looks_like_prose, scan_record
+from witness.leakscan import (
+    contains_secret,
+    load_allowed_keys,
+    looks_like_prose,
+    scan_record,
+    scan_value,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _LEAKSCAN_SCRIPT = _REPO_ROOT / "scripts" / "leakscan.py"
+
+# A single shared fixture for every test that needs a value `contains_secret`
+# recognizes as AWS-access-key-shaped — kept as ONE module-level constant
+# (rather than inlined per test) so this file's own source contains the
+# literal exactly once, not once per test. `scripts/leakscan.py --staged`
+# scans staged .py files as raw text for this same pattern (by design — a
+# secret pasted into test code is still a leak), so a test file that
+# legitimately needs a secret-shaped literal to exercise `contains_secret`
+# unavoidably trips that scan; this keeps that unavoidable footprint to a
+# minimum instead of multiplying it per call site.
+_AWS_KEY_SHAPED_FIXTURE = "AKIAABCDEFGHIJKLMNOP"
 
 
 def test_load_allowed_keys_contains_core_fields() -> None:
@@ -63,7 +80,7 @@ def test_findings_dynamic_keys_are_whitelisted() -> None:
 
 
 def test_contains_secret_detects_aws_key() -> None:
-    assert contains_secret("AKIAABCDEFGHIJKLMNOP") is not None
+    assert contains_secret(_AWS_KEY_SHAPED_FIXTURE) is not None
 
 
 def test_contains_secret_allows_wellformed_decoy_value() -> None:
@@ -103,3 +120,63 @@ def test_cli_exits_0_on_clean_bundle(tmp_path: Path) -> None:
         text=True,
     )
     assert result.returncode == 0
+
+
+def test_changed_file_digests_arbitrary_paths_are_not_disallowed_keys() -> None:
+    """`changed_file_digests`'s own keys are relative file paths — content,
+    not a fixed schema vocabulary — so the generic key-whitelist check
+    must not flag them, unlike every other nested dict in a record."""
+    allowed = load_allowed_keys()
+    record = {
+        "seq": 0,
+        "kind": "receipt",
+        "body": {
+            "changed_file_digests": {
+                "src/foo/bar.py": "a" * 64,
+                "README.md": "b" * 64,
+            }
+        },
+        "sig": "abc",
+    }
+    violations = scan_record(record, allowed)
+    assert violations == []
+
+
+def test_changed_file_digests_keys_are_still_scanned_for_secrets() -> None:
+    """A path-keyed field's keys are exempt from the whitelist check, but
+    NOT from secret-pattern scanning — a key can't be used to smuggle a
+    secret-shaped string past the scan just because it's "a path"."""
+    allowed = load_allowed_keys()
+    record = {
+        "seq": 0,
+        "kind": "receipt",
+        "body": {"changed_file_digests": {_AWS_KEY_SHAPED_FIXTURE: "a" * 64}},
+        "sig": "abc",
+    }
+    violations = scan_record(record, allowed)
+    assert any("secret-shaped" in v for v in violations)
+
+
+def test_changed_file_digests_values_still_scanned_for_secrets() -> None:
+    allowed = load_allowed_keys()
+    record = {
+        "seq": 0,
+        "kind": "receipt",
+        "body": {"changed_file_digests": {"src/foo.py": _AWS_KEY_SHAPED_FIXTURE}},
+        "sig": "abc",
+    }
+    violations = scan_record(record, allowed)
+    assert any("secret-shaped" in v for v in violations)
+
+
+def test_other_dicts_are_unaffected_by_path_keyed_exemption() -> None:
+    """A plain, non-exempt dict field (e.g. a hypothetical nested object
+    under a different key) still gets its keys checked normally — the
+    exemption in `scan_value` is scoped to `_PATH_KEYED_FIELDS` only."""
+    violations = scan_value(
+        "$.body",
+        {"findings": {"not_a_real_finding_kind_or_field": 1}},
+        load_allowed_keys(),
+        _parent_key="body",
+    )
+    assert any("not_a_real_finding_kind_or_field" in v for v in violations)

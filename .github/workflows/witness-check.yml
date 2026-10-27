@@ -1,0 +1,42 @@
+name: witness-check
+
+# Deliberately narrow trigger: only runs when a PR actually touches a
+# committed bundle under runs/frozen/ — NOT on every PR to this repo.
+# This repo has never had a .github/workflows/ directory before this
+# file; see the PR description / commit message this file shipped in for
+# a note asking a human to sanity-check this trigger condition before it
+# is ever merged to main (see witness's own README / docs/ARCHITECTURE.md
+# "Receipt v0.2 / CI gate" section for the full design).
+on:
+  pull_request:
+    paths:
+      - "runs/frozen/**/bundle.jsonl"
+
+permissions:
+  contents: read
+
+jobs:
+  witness-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find the changed bundle(s)
+        id: find
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          CHANGED="$(git diff --name-only "$BASE" "$HEAD" -- 'runs/frozen/**/bundle.jsonl' | head -n1)"
+          if [ -z "$CHANGED" ]; then
+            echo "no changed bundle.jsonl found under runs/frozen/ — nothing to verify"
+          fi
+          echo "bundle=$CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: witness verify
+        if: steps.find.outputs.bundle != ''
+        uses: ./.github/actions/witness-verify
+        with:
+          bundle-path: ${{ steps.find.outputs.bundle }}

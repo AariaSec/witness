@@ -68,20 +68,23 @@ class Signer:
         return base64.b64encode(raw).decode("ascii")
 
     def sign(self, body: ReceiptBody) -> Receipt:
-        sig_bytes = self._private_key.sign(canonical_json(body))
+        sig_bytes = self._private_key.sign(canonical_json(body.canonical_payload()))
         sig = base64.b64encode(sig_bytes).decode("ascii")
         return Receipt(body=body, sig=sig)
 
 
 def verify_receipt(r: Receipt) -> bool:
-    """Verify `r.sig` over `canonical_json(r.body)` using the public key
-    embedded in `r.body.pubkey`. Returns False on any malformed input —
-    never raises."""
+    """Verify `r.sig` over the canonical JSON of `r.body` (via
+    `ReceiptBody.canonical_payload()` — NOT a raw `model_dump`, so a
+    pre-v0.2 receipt round-tripped through the current schema still
+    reproduces the exact bytes it was originally signed over; see that
+    method's docstring) using the public key embedded in `r.body.pubkey`.
+    Returns False on any malformed input — never raises."""
     try:
         pub_raw = base64.b64decode(r.body.pubkey, validate=True)
         public_key = Ed25519PublicKey.from_public_bytes(pub_raw)
         sig_bytes = base64.b64decode(r.sig, validate=True)
-        public_key.verify(sig_bytes, canonical_json(r.body))
+        public_key.verify(sig_bytes, canonical_json(r.body.canonical_payload()))
         return True
     except (InvalidSignature, ValueError, TypeError):
         return False
