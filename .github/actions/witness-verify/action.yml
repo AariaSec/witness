@@ -37,10 +37,10 @@ inputs:
     default: "false"
   baseten-api-key:
     description: >-
-      Baseten API key for the live analyst call, e.g. `${{ secrets.
-      BASETEN_API_KEY }}` from the calling workflow — composite actions
-      can't read repo secrets directly. Leave empty to use the offline
-      template (no key present -> graceful fallback, not a failure).
+      Baseten API key for the live analyst call, passed through from a
+      repo secret by the calling workflow (composite actions can't read
+      repo secrets directly). Leave empty to use the offline template
+      (no key present -> graceful fallback, not a failure).
     required: false
     default: ""
 outputs:
