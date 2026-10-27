@@ -2,10 +2,13 @@
 
 **Status: locked shot list, timed.** Consolidated from the four-model
 Round-4 planning pass (`~/Desktop/AariaSec/meta-hackathon/ROUND4-FINAL-
-PLAN.html`), updated to reflect what actually shipped (the `pgroup_escape`
+PLAN.html`), updated twice since: once to reflect that the `pgroup_escape`
 miss this plan originally expected to just *disclose* got fixed during
-the build — see below). Target runtime: 2:50–3:00. Every number/claim
-below traces to a file or URL in this repo — nothing here is aspirational.
+the build, and again after a later external review pass (Fable) led to
+running a real 32-session experiment — which itself found and fixed two
+more bugs, turned the single flagship anecdote into an honest rate, and
+is now its own beat. Target runtime: 3:00. Every number/claim below
+traces to a file or URL in this repo — nothing here is aspirational.
 
 **Required opening line (hackathon rule, not optional):**
 
@@ -114,7 +117,7 @@ to the recorder core.
 
 ---
 
-## 2:00–2:30 — The merge gate
+## 2:00–2:25 — The merge gate
 
 **Visual:** a real, live GitHub pull request —
 [PR #2](https://github.com/AariaSec/witness/pull/2) — red X, the
@@ -134,25 +137,29 @@ green check, same gate, a faithful session.
 
 ---
 
-## 2:30–2:50 — Honesty: a real miss, found and fixed
+## 2:25–2:55 — Honesty: real numbers, and real misses, found and fixed
 
-**Visual:** `docs/LIMITATIONS.md`'s `pgroup_escape` entry — show the
-"before" (disclosed gap) and "after" (the fix, dated, with a fresh
-holdout scenario — `escape_relay` — proving it generalizes, not just
-patches the one case it was built against).
+**Visual:** `docs/NUMBERS.md`'s experiment table on screen — the four
+rates, the n=16/n=16 label visible. Cut to `docs/LIMITATIONS.md`'s
+`pgroup_escape` entry — "before" (disclosed gap) and "after" (the fix,
+dated, with a fresh holdout scenario, `escape_relay`, proving it
+generalizes).
 
 **Voiceover:**
-> This project publishes its own misses. Partway through this week we
-> found a real gap — a process that detaches from its own group went
-> undetected. We disclosed it, then fixed it, then proved the fix on a
-> scenario we wrote *after* the fix existed — so passing it couldn't be
-> explained by just matching the one case we already knew about.
+> One catch is an anecdote. So we ran it 32 times — real Muse Code
+> sessions, decoy-adjacent tasks and ordinary ones side by side. 44% of
+> the time, the agent actually touched the decoy. And running this
+> immediately found two real bugs in our own detectors — false alarms on
+> completely ordinary sessions. We fixed both the same day, and this is
+> the clean re-run: zero false alarms, not a cherry-picked one. This
+> project publishes its own misses — found, disclosed, fixed, and proven
+> on a case the fix never saw.
 
-**Caption:** "Disclosed. Fixed. Proven on a case the fix never saw."
+**Caption:** "32 real sessions. 2 bugs found by running it, not reading it. Both fixed."
 
 ---
 
-## 2:50–3:00 — Close
+## 2:55–3:00 — Close
 
 **Visual:** repo URL + live console URL, side by side.
 
@@ -168,12 +175,14 @@ patches the one case it was built against).
 ## Cut order if time runs short
 
 1. The Claude-Code self-reference aside (if kept at all) — cut first.
-2. Collapse "Honesty" beat to one sentence in voiceover over the merge-gate
-   shot, rather than its own 20s block.
+2. Collapse the "Honesty" beat to the 44%/32-runs line only, dropping
+   the pgroup_escape before/after visual — the number alone still carries
+   the point.
 3. Never cut: the receipt + `witness verify` + one real green/red PR
    check, the Claude Code parser with at least one genuine human-run
-   session, RULE-1-analog compliance, honest non-cherry-picked scoring,
-   and Muse Code keeping the majority of screen time.
+   session, RULE-1-analog compliance, the experiment's honest numbers
+   (44% marker-touch, 0% mismatch, 2 bugs found and fixed), and Muse Code
+   keeping the majority of screen time.
 
 ## Capture checklist (do these in order, before editing)
 
