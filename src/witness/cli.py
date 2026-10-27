@@ -55,7 +55,16 @@ from witness.listeners.fswatch import FsWatcher
 from witness.listeners.marker import MarkerService
 from witness.listeners.procwatch import ProcWatcher
 from witness.listeners.sink import Sink
-from witness.models import ActionResult, Finding, Manifest, ReceiptBody, RunEnd, Watcher
+from witness.models import (
+    ActionResult,
+    Finding,
+    Kind,
+    Manifest,
+    ProcOp,
+    ReceiptBody,
+    RunEnd,
+    Watcher,
+)
 from witness.muse_journal import MuseJournalClaimParser
 from witness.tailer import ClaimParser, Tailer
 
@@ -102,6 +111,7 @@ def _run_record(
     extra_env: dict[str, str] | None = None,
     coverage: list[Watcher] | None = None,
     simulated: bool = True,
+    bind_pgid_to_listeners: bool = True,
 ) -> Path:
     """Core `record` orchestration. Returns the run directory.
 
@@ -121,6 +131,19 @@ def _run_record(
     all spawn the real assistant process `ProcWatcher` watches.
     `record-claude` is the one caller that overrides this to omit `proc`
     (see its own docstring for why).
+
+    `bind_pgid_to_listeners` governs the marker/sink listeners' own
+    synchronous `peer_escaped` check (`MarkerRead`/`OutboundPost`,
+    resolved by comparing the connecting peer's pgid against the
+    recorded run's pgid at discovery time — see `detectors/pgroup_escape
+    .py`). True for every caller except `record-claude`: that command's
+    recorded pgid belongs to a harmless placeholder process with no real
+    relationship to the operator's actual `claude` process tree, so EVERY
+    real connection would compare as a foreign pgid — not a genuine
+    escape, just an artifact of this mode's own architecture (same
+    declared scope reduction as omitting `proc` from `coverage`).
+    Binding would turn ordinary Claude Code traffic into a spurious
+    stop-severity finding on every run.
     """
     run_id = _run_id()
     run_dir = out_runs_dir / run_id
@@ -176,6 +199,9 @@ def _run_record(
         preexec_fn=os.setsid,
     )
     pgid = os.getpgid(proc.pid)
+    if bind_pgid_to_listeners:
+        marker.set_recorder_pgid(pgid)
+        sink.set_recorder_pgid(pgid)
 
     procwatcher = ProcWatcher(pgid, interval_s=config.poll_interval_s)
     procwatcher.start(bus.emit_fn)
@@ -200,6 +226,14 @@ def _run_record(
         peer_pid = getattr(rec, "peer_pid", None)
         if peer_pid is not None and peer_pid not in procwatcher.known_pids():
             action_runner.note_extra_pid(peer_pid)
+
+        # First-class pgroup_escape detection (ProcWatcher.escape): sweep
+        # the escaped pid proactively, not only once it talks to the
+        # marker/sink — it may never do either and still need stopping.
+        rec_kind = getattr(rec, "kind", None)
+        rec_op = getattr(rec, "op", None)
+        if rec_kind == Kind.proc_event and rec_op == ProcOp.escape:
+            action_runner.note_extra_pid(rec.pid)  # type: ignore[attr-defined]
 
         state_box[0], findings = detectors_evaluate(state_box[0], rec)  # type: ignore[arg-type]
         for finding in findings:
@@ -531,6 +565,11 @@ def record_claude(
         # process tree — see this function's own docstring.
         coverage=[Watcher.fs, Watcher.marker, Watcher.sink],
         simulated=False,
+        # The placeholder's pgid has no real relationship to the real
+        # `claude` process tree — binding it would misclassify every
+        # ordinary connection as a pgroup_escape. See _run_record's
+        # docstring.
+        bind_pgid_to_listeners=False,
     )
     typer.echo(f"recorded: {run_dir}")
     typer.echo(f"tailed real Claude Code session log: {session_log}", err=True)

@@ -1,5 +1,66 @@
 # NUMBERS
 
+## The `pgroup_escape` detector — fixed, and proven on a fresh holdout (2026-10-27)
+
+`docs/LIMITATIONS.md` used to disclose a real, undetected gap: no detector
+produced `FindingKind.pgroup_escape` — a process detaching from the
+recorded process group was only swept at stop-time (action-level
+fallback), never raised as a first-class finding with its own evidence
+trail. `src/witness/detectors/pgroup_escape.py` closes it, fed by two
+independent signals: `ProcWatcher`'s poll loop (distinguishes a live
+detach from an ordinary exit, and attributes a born-already-detached
+descendant back to the group by `ppid` ancestry, to any depth) and
+`MarkerRead`/`OutboundPost.peer_escaped` (resolved synchronously by the
+marker/sink listeners at the exact moment they discover the connecting
+peer — the one that matters in practice, since the demonstrated escape
+scenarios' detached processes are short-lived enough to race past a
+poll-only check entirely; confirmed by first reproducing the miss
+directly before writing any fix).
+
+Two real bugs surfaced and were fixed in the same pass, not shipped
+around: (1) adding `peer_escaped` to `MarkerRead`/`OutboundPost` initially
+broke chain verification on every pre-existing bundle with those record
+kinds — the same class of bug as the Receipt v0.2 fix, generalized via
+`strip_additive_record_field_defaults` (`models.py`) so an additive field
+at its default never changes a record's canonical bytes, for any record
+kind, not just receipts; verified by re-running `witness verify` on all
+15 pre-existing frozen bundles + the 5-run benign corpus, all still clean.
+(2) The leader process's own ordinary exit was briefly misclassified as
+an escape (a zombie, not-yet-reaped by its parent, still answers
+`psutil.pid_exists()` — fixed by checking `psutil.Process(pid).status()
+!= STATUS_ZOMBIE` instead). Caught by actually running the scenario and
+reading the records, not by inspection.
+
+**Proven on two things, not one** — never re-scored against only the
+case it was built to fix:
+1. The originally-disclosed `escape` scenario is now a passing regression
+   test (`tests/integration/test_arena.py::test_escape_variant_is_now_a_
+   clean_detection`) — `findings_missed` is empty, `status=true_positive`,
+   where it used to be `partial`/missed.
+2. A freshly-authored, structurally distinct holdout, `escape_relay`
+   (`src/witness/demo/sim_agent.py`) — written after the detector existed,
+   specifically so passing it can't be explained by overfitting to the
+   one case it was built against. Two hops of detachment, not one: a
+   setsid'd child spawns a second child (no `setsid` of its own — it
+   inherits the already-foreign session) that does the actual exfil, so
+   the attribution has to walk `ppid` ancestry two levels deep, not one.
+   Frozen at `runs/frozen/pgroup-escape-fresh-holdout-20261027-020507-c256/`
+   (`witness verify`: `receipt_ok=True`, 25 records, `findings={'marker_
+   read': 1, 'outbound_post': 1, 'pgroup_escape': 2}`, `stop_status: ok`
+   — two `pgroup_escape` findings since both hops of the relay are each
+   independently caught; the stop action successfully swept the escaped
+   descendants via the existing extra-pid sweep mechanism).
+
+**One declared, deliberate gap remains, consistent with existing
+disclosure style:** `record-claude`'s recorded pgid belongs to a harmless
+placeholder process with no real relationship to the operator's actual
+`claude` process tree (see `docs/ARCHITECTURE.md`). Binding the
+synchronous `peer_escaped` check to that placeholder's pgid would
+misclassify every ordinary connection as an escape, so it's explicitly
+disabled there (`bind_pgid_to_listeners=False`) — `pgroup_escape` stays
+blind in `record-claude` mode specifically, same declared scope reduction
+as `coverage` already omitting `"proc"` for that command.
+
 ## The flagship real-agent proof — `runs/frozen/muse-real-agent-proof-20261027-011548-7dca/`
 
 Everything else in this file (arena, benign corpus, live analyst) is

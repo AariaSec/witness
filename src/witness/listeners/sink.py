@@ -8,6 +8,7 @@ never retained: each chunk is hashed and discarded immediately.
 
 from __future__ import annotations
 
+import os
 import threading
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -54,6 +55,18 @@ def _find_peer(remote_port: int) -> tuple[int | None, str | None]:
     return None, None
 
 
+def _peer_escaped(peer_pid: int | None, recorder_pgid: int | None) -> bool:
+    """True only when both pgids were actually resolved and differ — checked
+    at this exact moment (while the peer is still alive making the request),
+    not via a later poll a short-lived process could exit before reaching."""
+    if peer_pid is None or recorder_pgid is None:
+        return False
+    try:
+        return os.getpgid(peer_pid) != recorder_pgid
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
 class Sink:
     """`EventSource` accepting `POST /*` and emitting digest-only records."""
 
@@ -73,12 +86,18 @@ class Sink:
         self._server: HTTPServer | None = None
         self._thread: threading.Thread | None = None
         self._emit: Callable[[BaseModel], None] | None = None
+        self._recorder_pgid: int | None = None
 
     @property
     def bound_port(self) -> int:
         if self._server is None:
             return self._requested_port
         return int(self._server.server_address[1])
+
+    def set_recorder_pgid(self, pgid: int) -> None:
+        """Set once the recorded process group's pgid is known (it isn't
+        yet at construction time — the assistant hasn't been spawned)."""
+        self._recorder_pgid = pgid
 
     def start(self, emit: Callable[[BaseModel], None]) -> None:
         self._emit = emit
@@ -119,6 +138,7 @@ class Sink:
 
                 content_type = _content_type_enum(self.headers.get("Content-Type"))
                 peer_pid, peer_exe = _find_peer(self.client_address[1])
+                peer_escaped = _peer_escaped(peer_pid, service._recorder_pgid)
 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -132,6 +152,7 @@ class Sink:
                         OutboundPost(
                             peer_pid=peer_pid,
                             peer_exe=peer_exe,
+                            peer_escaped=peer_escaped,
                             dest=f"{service._host}:{service.bound_port}{self.path}",
                             bytes=total,
                             body_sha256=hasher.hexdigest(),

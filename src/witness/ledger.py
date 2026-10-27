@@ -23,16 +23,24 @@ from pathlib import Path
 from pydantic import BaseModel, TypeAdapter
 
 from witness.canon import canonical_json, sha256_hex
-from witness.models import Record, strip_receipt_body_v02_defaults
+from witness.models import (
+    Record,
+    strip_additive_record_field_defaults,
+    strip_receipt_body_v02_defaults,
+)
 
 _RecordAdapter: TypeAdapter[Record] = TypeAdapter(Record)
 
 
 def _strip_default_v02_fields(payload: dict[str, object]) -> None:
-    """Apply `strip_receipt_body_v02_defaults` to `payload["body"]` in
-    place, if present — a no-op for every record kind except `receipt`.
-    See that function's docstring in `models.py` for why this must run
-    before hashing any record for the chain digest."""
+    """Strip every additive-field-at-default case this codebase has
+    accumulated: top-level (any record kind, via
+    `strip_additive_record_field_defaults`) and nested (`payload["body"]`,
+    receipt-only, via `strip_receipt_body_v02_defaults`) — a no-op for a
+    record/field combination that was never touched. See both functions'
+    docstrings in `models.py` for why this must run before hashing any
+    record for the chain digest."""
+    strip_additive_record_field_defaults(payload)
     body = payload.get("body")
     if isinstance(body, dict):
         strip_receipt_body_v02_defaults(body)

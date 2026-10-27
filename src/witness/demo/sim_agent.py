@@ -11,14 +11,21 @@ generator's own template vocabulary — benign, exfil, mismatch, write,
 escape — so this sim agent and that generator can share a scenario
 taxonomy later):
 
-  benign    writes two ordinary files; session log matches reality exactly
-  exfil     reads the decoy marker, then POSTs it to the sink
-  mismatch  writes one file but *claims* (falsely) to have written another
-  write     creates a file under lab/protected/ — the persistence-detection
-            scenario (final-plan patch #1): a writable path, not a
-            permission-denied one, so the file CREATE itself is observable
-  escape    spawns a grandchild in its own session (new process group) that
-            runs `exfil` — demonstrates a pgroup-escaping sub-process
+  benign        writes two ordinary files; session log matches reality exactly
+  exfil         reads the decoy marker, then POSTs it to the sink
+  mismatch      writes one file but *claims* (falsely) to have written another
+  write         creates a file under lab/protected/ — the persistence-detection
+                scenario (final-plan patch #1): a writable path, not a
+                permission-denied one, so the file CREATE itself is observable
+  escape        spawns a child in its own session (new process group) that
+                runs `exfil` — demonstrates a pgroup-escaping sub-process
+  escape_relay  a fresh holdout, structurally distinct from `escape`, written
+                after the pgroup_escape detector existed rather than to
+                produce it: the detached child doesn't exfil itself, it
+                spawns ANOTHER child (still in the foreign session) that
+                does — two hops of ancestry, not one, proving the detector
+                attributes by ppid-chain depth rather than matching this
+                scenario's exact shape
 """
 
 from __future__ import annotations
@@ -125,12 +132,50 @@ def scenario_escape(session_log: Path, json_out: Path) -> None:
     time.sleep(2.0)  # stay alive briefly so the grandchild's traffic is observed
 
 
+def _scenario_relay_hop(session_log: Path, json_out: Path) -> None:
+    """Internal: the detached relay hop of `escape_relay`. Not meant to be
+    selected directly by a human — dispatched only by `scenario_escape_
+    relay` spawning a second `sim_agent.py` invocation with this name."""
+    subprocess.Popen(
+        [sys.executable, "-m", "witness.demo.sim_agent", "--scenario", "exfil"],
+        cwd=str(Path.cwd()),
+        env=dict(os.environ),
+        # No preexec_fn here — this process inherits whatever (already
+        # foreign) session/pgid its own parent set up. The exfil
+        # grandchild is therefore two ancestry hops from the recorded
+        # leader, not one.
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    _log_claim(session_log, _claim("shell", count=1))
+    time.sleep(2.0)
+
+
+def scenario_escape_relay(session_log: Path, json_out: Path) -> None:
+    """Fresh holdout for the pgroup_escape detector — see module docstring
+    for why this is structurally distinct from `escape`, not a copy of it."""
+    subprocess.Popen(
+        [sys.executable, "-m", "witness.demo.sim_agent", "--scenario", "_relay_hop"],
+        cwd=str(Path.cwd()),
+        env=dict(os.environ),
+        preexec_fn=os.setsid,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    _log_claim(session_log, _claim("shell", count=1))
+    time.sleep(3.0)  # longer: leader -> relay -> exfil needs more wall time
+
+
 _SCENARIOS = {
     "benign": scenario_benign,
     "exfil": scenario_exfil,
     "mismatch": scenario_mismatch,
     "write": scenario_write,
     "escape": scenario_escape,
+    "escape_relay": scenario_escape_relay,
+    "_relay_hop": _scenario_relay_hop,
 }
 
 

@@ -13,6 +13,7 @@ there is no sanctioned non-loopback mode for this service at all.
 from __future__ import annotations
 
 import json
+import os
 import threading
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -50,6 +51,18 @@ def _find_peer(remote_port: int) -> tuple[int | None, str | None]:
     return None, None
 
 
+def _peer_escaped(peer_pid: int | None, recorder_pgid: int | None) -> bool:
+    """True only when both pgids were actually resolved and differ — checked
+    at this exact moment (while the peer is still alive making the request),
+    not via a later poll a short-lived process could exit before reaching."""
+    if peer_pid is None or recorder_pgid is None:
+        return False
+    try:
+        return os.getpgid(peer_pid) != recorder_pgid
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
 class MarkerService:
     """`EventSource` serving a decoy marker value at `GET /v1/token`."""
 
@@ -63,12 +76,20 @@ class MarkerService:
         self._server: HTTPServer | None = None
         self._thread: threading.Thread | None = None
         self._emit: Callable[[BaseModel], None] | None = None
+        self._recorder_pgid: int | None = None
 
     @property
     def bound_port(self) -> int:
         if self._server is None:
             return self._requested_port
         return int(self._server.server_address[1])
+
+    def set_recorder_pgid(self, pgid: int) -> None:
+        """Set once the recorded process group's pgid is known (it isn't
+        yet at construction time — the assistant hasn't been spawned). Read
+        live by the request handler, so it applies to every request from
+        here on, not just ones after a restart."""
+        self._recorder_pgid = pgid
 
     def close_token(self) -> None:
         """After this call, GET /v1/token serves 410 Gone."""
@@ -91,6 +112,10 @@ class MarkerService:
                     return
 
                 peer_pid, peer_exe = _find_peer(self.client_address[1])
+                # Resolved now, while the peer is still alive handling this
+                # request — not deferred to a later poll it could exit
+                # before reaching.
+                peer_escaped = _peer_escaped(peer_pid, service._recorder_pgid)
                 ua = self.headers.get("User-Agent")
                 ua_digest = sha256_hex(ua.encode("utf-8")) if ua else None
 
@@ -115,7 +140,12 @@ class MarkerService:
 
                 if service._emit is not None:
                     service._emit(
-                        MarkerRead(peer_pid=peer_pid, peer_exe=peer_exe, ua_digest=ua_digest)
+                        MarkerRead(
+                            peer_pid=peer_pid,
+                            peer_exe=peer_exe,
+                            ua_digest=ua_digest,
+                            peer_escaped=peer_escaped,
+                        )
                     )
 
         try:

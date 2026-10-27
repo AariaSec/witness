@@ -27,11 +27,26 @@ what's solid versus what's a placeholder.
 
 ## Known gaps worth naming
 
-- **`pgroup_escape` has no dedicated detector**, only an action-level
-  fallback: the stop action sweeps any pid seen at the marker/sink even if
-  the process watcher never saw it spawn. This covers the demonstrated
-  escape scenario but is not the same as a first-class finding with its
-  own evidence trail.
+- **`pgroup_escape` now has a dedicated detector** (fixed 2026-10-27,
+  `src/witness/detectors/pgroup_escape.py`) — this entry used to say it
+  had none; left here, corrected, rather than deleted, for the same
+  reason the historical `runs/frozen/arena-20261026/escape_simple` bundle
+  is kept unmigrated: the gap was real and disclosed, and the fix is more
+  credible shown against that history than if it looked like there was
+  never a gap. Two independent signals feed it: `ProcWatcher`'s poll loop
+  (reliable only if the escaped process outlives one poll interval) and
+  `MarkerRead`/`OutboundPost.peer_escaped`, resolved synchronously by the
+  marker/sink listeners at the moment they discover the connecting peer
+  (not subject to the poll race — this is the one that actually matters,
+  since the demonstrated scenarios' escaped processes are short-lived).
+  Proven on two things, not one: the originally-disclosed `escape`
+  scenario (now a regression test, `tests/integration/test_arena.py`) and
+  a freshly-authored, structurally distinct two-hop holdout,
+  `escape_relay` (`src/witness/demo/sim_agent.py`), frozen at
+  `runs/frozen/pgroup-escape-fresh-holdout-20261027-020507-c256/` —
+  written after the detector existed specifically so passing it couldn't
+  be explained by overfitting to the one case it was built against. See
+  `docs/NUMBERS.md`.
 - **Chain verification checks links, not full recomputation**, in the
   console specifically: the browser-side viewer checks that each record's
   `prev` points at the previous record's `digest`; it trusts the recorder's

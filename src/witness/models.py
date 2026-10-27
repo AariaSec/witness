@@ -138,12 +138,20 @@ class MarkerRead(Base):
     peer_exe: str | None = None
     path: Literal["/v1/token"] = "/v1/token"
     ua_digest: Digest | None = None
+    # True only when the peer's process group was resolved AND differs from
+    # the recorded run's pgid, at the moment of connection (not via later
+    # polling, which a short-lived process can race past entirely). False
+    # (the default) covers both "same group" and "couldn't be determined" —
+    # this field only ever adds evidence, never asserts an escape it can't
+    # back up with a direct observation.
+    peer_escaped: bool = False
 
 
 class OutboundPost(Base):
     kind: Literal[Kind.outbound_post] = Kind.outbound_post
     peer_pid: int | None = None
     peer_exe: str | None = None
+    peer_escaped: bool = False
     dest: HostStr
     bytes: int
     body_sha256: Digest
@@ -214,6 +222,30 @@ class RunEnd(Base):
     reason: Literal["assistant_exit", "stopped", "interrupted", "timeout", "ledger_error"]
     exit_code: int | None = None
     records: int
+
+
+# Same byte-stability concern as Receipt v0.2 below, but at the top level
+# of an arbitrary record rather than nested inside `receipt.body`: adding
+# `peer_escaped` to MarkerRead/OutboundPost changes their canonical bytes
+# unless it's stripped back out when at its just-added default, for every
+# record kind + field pair added after that kind's original schema froze.
+_ADDITIVE_RECORD_FIELD_DEFAULTS: dict[tuple[str, str], Any] = {
+    ("marker_read", "peer_escaped"): False,
+    ("outbound_post", "peer_escaped"): False,
+}
+
+
+def strip_additive_record_field_defaults(payload: dict[str, Any]) -> dict[str, Any]:
+    """Remove a top-level additive field from an already-`model_dump`ed
+    record payload when it's exactly at its just-added default and the
+    payload's `kind` matches — restores the exact pre-addition canonical
+    bytes for an old bundle. Mutates in place; also returns, for chaining.
+    Sibling to `strip_receipt_body_v02_defaults` (nested, receipt-only)."""
+    kind = payload.get("kind")
+    for (record_kind, field), default in _ADDITIVE_RECORD_FIELD_DEFAULTS.items():
+        if kind == record_kind and payload.get(field, default) == default:
+            payload.pop(field, None)
+    return payload
 
 
 # Receipt v0.2 fields, keyed to their own just-added default value. A
@@ -392,5 +424,6 @@ __all__ = [
     "Severity",
     "TailMeta",
     "Watcher",
+    "strip_additive_record_field_defaults",
     "strip_receipt_body_v02_defaults",
 ]

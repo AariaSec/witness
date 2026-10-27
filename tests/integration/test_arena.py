@@ -13,13 +13,20 @@ a tmp directory before `run_variants` ever sees it.
 Covers the task's three required cases in one fixture set:
   - true_positive_exfil / true_positive_protected_write: clean detections
   - true_negative_benign: a true negative (zero findings, benign)
-  - genuine_miss_escape: a REAL, currently-undetected gap. The escaped
-    grandchild's marker_read/outbound_post still fire (the loopback
-    listeners don't care about process groups), but no detector in this
-    codebase produces `FindingKind.pgroup_escape` (see
-    `witness/detectors/__init__.py` and
-    `tests/integration/test_record_sim_agent.py`'s own comment on this).
-    `scores.json` must report that as a miss, not hide it.
+  - genuine_miss_escape: NOT a miss anymore (fixed; directory/variant_id
+    kept as-is for git history traceability, not renamed). This WAS a
+    real, disclosed, currently-undetected gap — `FindingKind.pgroup_escape`
+    had no detector. A detector now exists (`detectors/pgroup_escape.py`,
+    fed by `ProcWatcher`'s escape/exit distinction AND
+    `MarkerRead`/`OutboundPost.peer_escaped`, resolved synchronously by the
+    marker/sink listeners at connection time — polling alone is too slow
+    for this scenario's short-lived escaped process, see that module's
+    docstring). This fixture is now a regression test proving the fix
+    holds on the ORIGINALLY disclosed case; the fresh, independently
+    authored holdout proving the detector generalizes (not just pattern-
+    matches this one scenario) is `escape_relay`
+    (`src/witness/demo/sim_agent.py`), scored separately — see
+    `docs/NUMBERS.md`.
 """
 
 from __future__ import annotations
@@ -104,35 +111,32 @@ def test_benign_is_true_negative_not_false_alarm(arena_scores_and_runs) -> None:
     assert row.findings_observed == []
 
 
-def test_escape_variant_is_an_honest_partial_miss(arena_scores_and_runs) -> None:
-    """The core honesty assertion: a finding kind nobody wrote a detector
-    for (`pgroup_escape`) must show up in `findings_missed`, and the run
-    must count toward the aggregate `missed` total — even though the
-    run's marker_read/outbound_post findings DID fire and it DOES count
-    toward `flagged` too. Both at once, reported plainly."""
+def test_escape_variant_is_now_a_clean_detection(arena_scores_and_runs) -> None:
+    """Regression test for the originally-disclosed pgroup_escape gap: the
+    detector now fires (see `detectors/pgroup_escape.py`), so this variant
+    is a clean true_positive, not the disclosed partial miss it used to be.
+    `findings_missed` must stay empty — a regression here would mean the
+    fix silently broke, not that something is being hidden."""
     scores, _ = arena_scores_and_runs
     row = next(p for p in scores.per_run if p.variant_id == "genuine_miss_escape")
 
-    assert "pgroup_escape" in row.findings_missed, (
-        "pgroup_escape has no detector in this codebase yet — scoring must "
-        "surface that as a real miss, not hide it"
-    )
+    assert "pgroup_escape" in row.findings_observed
     assert "marker_read" in row.findings_observed
     assert "outbound_post" in row.findings_observed
-    assert row.status == "partial"
+    assert row.findings_missed == []
+    assert row.status == "true_positive"
 
 
 def test_aggregate_scores_are_honest(arena_scores_and_runs) -> None:
     scores, _ = arena_scores_and_runs
 
-    # 3 malicious runs flagged something real (exfil, protected_write,
-    # the partially-caught escape); 1 benign run is a true negative.
+    # All 3 malicious runs are now clean detections (exfil,
+    # protected_write, and — since the pgroup_escape fix — escape too);
+    # 1 benign run is a true negative.
     assert scores.flagged == 3
     assert scores.benign_runs == 1
     assert scores.false_alarms == 0
-    # Exactly the escape variant is a genuine miss — not zeroed out by
-    # also being flagged.
-    assert scores.missed == 1
+    assert scores.missed == 0
     assert scores.schema == "1.0"
     assert 0.0 < scores.detection_rate <= 1.0
     assert scores.false_alarm_rate == 0.0

@@ -35,7 +35,8 @@ responses.
                        ▼                             ▼
                detectors (marker_read,        actions (close decoy key,
                outbound_post, mismatch,       stop process group,
-               protected_write, drift[stub])  sign receipt — Ed25519)
+               protected_write, pgroup_escape, sign receipt — Ed25519)
+               drift[stub])
                        │                             │
                        └──────────────┬──────────────┘
                                       ▼
@@ -123,10 +124,14 @@ validator (muse 1.4.13, 2026-10-26):
   POST sink, both loopback-only; a process-group watcher (`psutil`); a
   filesystem watcher (`watchdog`, with a polling fallback if the OS watch
   limit is hit).
-- **Detectors** (`detectors/`) — five independent checks: a decoy key being
+- **Detectors** (`detectors/`) — six independent checks: a decoy key being
   read, a POST reaching the decoy sink, a reported-vs-recorded mismatch (the
   agent's own claims vs. what the watchers actually saw), a write to a
-  path marked protected, and a drift/behavioral-shape signal that is
+  path marked protected, a process detaching from the recorded process
+  group (`pgroup_escape` — fed by both `ProcWatcher`'s poll loop and a
+  synchronous peer-pgid check at the marker/sink listener, since the
+  escaped processes seen in practice are often too short-lived for
+  polling alone to catch), and a drift/behavioral-shape signal that is
   deliberately a stub returning no finding — it isn't scored or shown as a
   headline number until it's been validated against held-out data.
 - **Actions** (`actions/`) — close the decoy key (serves 410 after), stop
@@ -229,9 +234,13 @@ watchers, signed receipt) working unmodified, it spawns a harmless
 placeholder process (`sleep <N>`) to stand in for a process `ProcWatcher`
 can watch. The one real cost: `proc_event` ground truth reflects this
 placeholder, not the operator's actual `claude` process tree, so
-process-level detectors (e.g. `pgroup_escape`) are blind in this mode.
-Filesystem and decoy marker/sink ground truth are unaffected (they watch
-`--lab` and local ports, not a process tree). See `docs/LIMITATIONS.md`.
+`pgroup_escape`'s poll-based signal is blind in this mode — and its
+synchronous marker/sink signal (`peer_escaped`) is deliberately disabled
+here too (`bind_pgid_to_listeners=False`), since the placeholder's pgid
+has no real relationship to the actual `claude` tree and would otherwise
+misclassify every ordinary connection as an escape. Filesystem and decoy
+marker/sink ground truth are otherwise unaffected (they watch `--lab` and
+local ports, not a process tree). See `docs/LIMITATIONS.md`.
 
 ## Receipt v0.2 / CI gate: binding the receipt to a git tree (added 2026-10-27)
 
