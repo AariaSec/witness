@@ -78,20 +78,31 @@ only a bounded, enumerated shape plus a digest ever survives, mirroring
 
 ## What this parser does NOT yet do (the tool-call gap)
 
-No payload_type observed in any real capture made for this module
-corresponds to a tool invocation — `--provider echo` (the only safe,
-sanctioned provider in this environment) never calls a tool, so the real
-hook-fired or journal-recorded shape of a tool call (a `preToolUse` /
-`postToolUse`-equivalent event, presumably also nested under
-`payload.kind == "run"`'s `event` object alongside the observed
-`model_request_configured` / `model_response_created` / `model_completed`
-sequence) was never seen and is NOT guessed at here.
-`_PAYLOAD_TYPE_TO_CLAIM_TOOL` and `_RUN_EVENT_KIND_TO_CLAIM_TOOL` below are
-the only two places a real mapping would be added, and both are
-intentionally empty. Until populated from an observed capture, this
-parser correctly classifies every real record it has ever seen as "not an
-assistant tool claim" (returns no `AssistantClaim`) rather than inventing
-one. See `docs/LIMITATIONS.md`.
+**Partially closed 2026-10-26.** A real, tool-executing session (`muse
+exec --provider meta --trust-workspace --disable-approval`, run by the
+user directly — not by this codebase, which stays within its own
+sandbox-preserving boundary) produced a genuine `tool.result` record:
+
+```json
+{"payload_type":"tool.result","payload":{"kind":"tool_result",
+ "call_id":"call_...","text":"<content-bearing, never stored>",
+ "edit_facts":{"tool_name":"write_file","path":"hello.txt","added":1},
+ "correlation_facts":{"tool_name":"write_file","outcome":"success"}}}
+```
+
+`correlation_facts.tool_name` is the clean, enumerable signal —
+`_PAYLOAD_TYPE_TO_CLAIM_TOOL` now maps the one tool_name actually
+observed, `"write_file"` → `ClaimTool.write`, extracting
+`edit_facts.path` (bounded, truncated — a path, not content) and
+`edit_facts.added` as `claimed_count`. `payload.text` is a content-bearing
+field (confirmed here, not guessed) and is never read into any emitted
+record, same discipline as every other content field in this module.
+
+**Still genuinely open:** only `write_file` has been observed. Other
+`tool_name` values (a shell command, a file read, a web request) were
+never exercised in this one capture and are NOT guessed at —
+`_PAYLOAD_TYPE_TO_CLAIM_TOOL` has exactly one entry, not a speculative
+full set. See `docs/LIMITATIONS.md`.
 """
 
 from __future__ import annotations
@@ -106,11 +117,23 @@ from witness.models import AssistantClaim, ClaimTool, TailMeta
 
 _MAX_LINE = 2 * 2**20  # 2 MB hard cap, same bound tailer.py uses
 
-# Real payload_type values confirmed (2026-10-26) to correspond to an
-# assistant TOOL claim, mapped to the existing `ClaimTool` enum. Empty on
-# purpose — see module docstring "the tool-call gap". Extend only from an
-# observed capture; never from a guess.
+# Real payload_type values confirmed to correspond to an assistant TOOL
+# claim, mapped to the existing `ClaimTool` enum. Extend only from an
+# observed capture; never from a guess. `"tool.result"` is handled
+# specially in `_claim_tool_for` (its ClaimTool depends on
+# `correlation_facts.tool_name`, see `_TOOL_NAME_TO_CLAIM_TOOL`), so it is
+# deliberately NOT listed here.
 _PAYLOAD_TYPE_TO_CLAIM_TOOL: dict[str, ClaimTool] = {}
+
+# Real `payload.correlation_facts.tool_name` values (payload_type
+# `"tool.result"`) confirmed, by an actual observed capture, to correspond
+# to a given `ClaimTool`. Confirmed 2026-10-26 against a real
+# `muse exec --provider meta` session: `write_file` creating a new file.
+# Extend only from another observed capture — a shell command, a file
+# read, a web request were never exercised and are not guessed at here.
+_TOOL_NAME_TO_CLAIM_TOOL: dict[str, ClaimTool] = {
+    "write_file": ClaimTool.write,
+}
 
 # Real `payload.event.kind` values (nested under a `runtime.session`
 # payload whose own `kind` is `"run"`) confirmed to correspond to a tool
@@ -193,19 +216,27 @@ def _digest_of_record(rec: dict[str, Any]) -> str:
 
 def _claim_tool_for(rec: dict[str, Any]) -> ClaimTool | None:
     """Defensible-mapping lookup only — see module docstring. Returns
-    `None` for every payload_type/event_kind this module has not actually
-    observed to be a tool claim."""
+    `None` for every payload_type/event_kind/tool_name this module has not
+    actually observed to be a tool claim."""
     payload_type = rec.get("payload_type")
     if isinstance(payload_type, str) and payload_type in _PAYLOAD_TYPE_TO_CLAIM_TOOL:
         return _PAYLOAD_TYPE_TO_CLAIM_TOOL[payload_type]
 
     payload = rec.get("payload")
-    if isinstance(payload, dict) and payload.get("kind") == "run":
-        event = payload.get("event")
-        if isinstance(event, dict):
-            event_kind = event.get("kind")
-            if isinstance(event_kind, str) and event_kind in _RUN_EVENT_KIND_TO_CLAIM_TOOL:
-                return _RUN_EVENT_KIND_TO_CLAIM_TOOL[event_kind]
+    if isinstance(payload, dict):
+        if payload_type == "tool.result":
+            correlation = payload.get("correlation_facts")
+            if isinstance(correlation, dict):
+                tool_name = correlation.get("tool_name")
+                if isinstance(tool_name, str) and tool_name in _TOOL_NAME_TO_CLAIM_TOOL:
+                    return _TOOL_NAME_TO_CLAIM_TOOL[tool_name]
+
+        if payload.get("kind") == "run":
+            event = payload.get("event")
+            if isinstance(event, dict):
+                event_kind = event.get("kind")
+                if isinstance(event_kind, str) and event_kind in _RUN_EVENT_KIND_TO_CLAIM_TOOL:
+                    return _RUN_EVENT_KIND_TO_CLAIM_TOOL[event_kind]
     return None
 
 
@@ -225,14 +256,24 @@ def claim_from_inner_record(rec: dict[str, Any]) -> AssistantClaim | None:
         payload = rec.get("payload")
         payload = payload if isinstance(payload, dict) else {}
 
-        # Bounded, content-free extraction only — counts/short tokens,
-        # never free text. Populated once a real mapping exists; for now
-        # `tool` above is always None so this branch is dead code until
-        # `_PAYLOAD_TYPE_TO_CLAIM_TOOL` / `_RUN_EVENT_KIND_TO_CLAIM_TOOL`
-        # gain an entry from an observed capture.
+        # Bounded, content-free extraction only — a path string and an
+        # integer count, never `payload.text` (content-bearing, see
+        # module docstring) or any other free-text field.
         paths: list[str] = []
         hosts: list[str] = []
-        count = payload.get("count") if isinstance(payload.get("count"), int) else None
+        count: int | None = None
+
+        if rec.get("payload_type") == "tool.result":
+            edit_facts = payload.get("edit_facts")
+            if isinstance(edit_facts, dict):
+                path = edit_facts.get("path")
+                if isinstance(path, str):
+                    paths = [path]
+                added = edit_facts.get("added")
+                if isinstance(added, int):
+                    count = added
+        elif isinstance(payload.get("count"), int):
+            count = payload["count"]
 
         return AssistantClaim(
             source="session_log",

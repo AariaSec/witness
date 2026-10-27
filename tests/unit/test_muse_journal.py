@@ -36,6 +36,16 @@ FIXTURE = Path(__file__).parent.parent / "fixtures" / "muse_journal" / "sanitize
 # secret-pattern scan (`scan_text_blob`), just not the (inapplicable)
 # key-whitelist check.
 
+# A second, later capture: a REAL tool-executing session (`muse exec
+# --provider meta --trust-workspace --disable-approval`, run directly by
+# the project owner outside this codebase's own safety boundary — see
+# muse_journal.py's module docstring). Sanitized the same way: every
+# `prompt`/`text`/`chunk` string value replaced with the placeholder
+# before commit.
+REAL_TOOL_CALL_FIXTURE = (
+    Path(__file__).parent.parent / "fixtures" / "muse_journal" / "real_tool_call_session.txt"
+)
+
 
 def _flat_record(payload_type: str = "runtime.session.metadata", **payload: object) -> dict:
     return {
@@ -283,6 +293,90 @@ def test_parser_tails_the_real_sanitized_fixture_as_a_live_file(tmp_path: Path) 
         # zero parse_error TailMeta (every real line in the fixture is
         # structurally valid).
         assert not any(isinstance(e, AssistantClaim) for e in events)
+        assert not any(
+            isinstance(e, TailMeta) and e.event == "parse_error" for e in events
+        )
+    finally:
+        tailer.stop()
+
+
+# --- against the real TOOL-EXECUTING capture (closes part of the gap) ----
+
+
+def test_real_tool_call_fixture_contains_no_unredacted_prose() -> None:
+    raw = REAL_TOOL_CALL_FIXTURE.read_text()
+    assert "Create a file named" not in raw
+    assert "wrote 5 bytes" not in raw
+
+
+def test_claim_from_inner_record_recognizes_real_write_file_tool_result() -> None:
+    # The actual record this mapping is built from (see muse_journal.py's
+    # module docstring), with `text` already sanitized the way the
+    # committed fixture is.
+    rec = {
+        "payload_type": "tool.result",
+        "payload": {
+            "kind": "tool_result",
+            "call_id": "call_01a17af987237735805bf1a2a2af67a7",
+            "text": "placeholder prompt text",
+            "edit_facts": {"tool_name": "write_file", "path": "hello.txt", "added": 1},
+            "correlation_facts": {"tool_name": "write_file", "outcome": "success"},
+        },
+    }
+    claim = claim_from_inner_record(rec)
+    assert claim is not None
+    assert claim.tool == "write"
+    assert claim.claimed_paths == ["hello.txt"]
+    assert claim.claimed_count == 1
+    # The content-bearing `text` field must never leak into the claim.
+    assert "placeholder prompt text" not in claim.model_dump_json()
+
+
+def test_claim_from_inner_record_unknown_tool_name_returns_none() -> None:
+    # Only `write_file` has ever been observed — a different tool_name
+    # (e.g. a shell command or a file read) must NOT be guessed at.
+    rec = {
+        "payload_type": "tool.result",
+        "payload": {
+            "kind": "tool_result",
+            "correlation_facts": {"tool_name": "run_shell_command", "outcome": "success"},
+        },
+    }
+    assert claim_from_inner_record(rec) is None
+
+
+def test_iter_session_file_against_real_tool_call_fixture_finds_the_write(tmp_path: Path) -> None:
+    records = list(iter_session_file(REAL_TOOL_CALL_FIXTURE))
+    assert len(records) > 0
+    tool_results = [r for r in records if r.get("payload_type") == "tool.result"]
+    assert len(tool_results) == 1
+    claims = [claim_from_inner_record(r) for r in records]
+    claims = [c for c in claims if c is not None]
+    assert len(claims) == 1
+    assert claims[0].tool == "write"
+    assert claims[0].claimed_paths == ["hello.txt"]
+
+
+def test_parser_tails_the_real_tool_call_fixture_and_emits_one_claim(tmp_path: Path) -> None:
+    from witness.tailer import Tailer
+
+    target = tmp_path / "session.jsonl"
+    target.write_text("")
+    events: list[AssistantClaim | TailMeta] = []
+    tailer = Tailer([target], parser=MuseJournalClaimParser())
+    tailer.start(lambda rec: events.append(rec))
+    try:
+        with open(target, "a") as fh:
+            fh.write(REAL_TOOL_CALL_FIXTURE.read_text())
+        import time
+
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            time.sleep(0.05)
+        claims = [e for e in events if isinstance(e, AssistantClaim)]
+        assert len(claims) == 1
+        assert claims[0].tool == "write"
+        assert claims[0].claimed_paths == ["hello.txt"]
         assert not any(
             isinstance(e, TailMeta) and e.event == "parse_error" for e in events
         )

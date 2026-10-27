@@ -64,26 +64,26 @@ session (see the safety boundary this work operated under):
   `PascalCase`, confirmed by the validator accepting `PreToolUse` and
   rejecting `preToolUse`).
 
-### Genuinely unverified — not guessed at
+### Partially closed 2026-10-26, later the same day
 
-- **The real tool-call payload shape.** Every real session capture made
-  for this work used `--provider echo`, the only provider safe to invoke
-  under this build's boundary (`--yolo`, `--disable-sandbox`,
-  `--disable-approval`, `--provider meta` with no key, and the
-  experimental `--provider local` flag are all out of scope — see the
-  boundary note at the top of this effort's instructions). `echo` never
-  invokes a tool, so no real capture has ever shown what a `preToolUse` /
-  `postToolUse`-equivalent record actually looks like in `session.jsonl`
-  (presumably nested under a `runtime.session` payload's `kind:"run"`
-  `event` object, alongside the observed `model_request_configured` /
-  `model_response_created` / `model_completed` sequence — but that's a
-  guess about WHERE, not a claim about the shape). `muse_journal.py`'s
-  `_PAYLOAD_TYPE_TO_CLAIM_TOOL` and `_RUN_EVENT_KIND_TO_CLAIM_TOOL` lookup
-  tables are deliberately empty rather than populated with an invented
-  shape; every real record classified so far correctly comes back "not a
-  claim," which is the honest outcome of this gap, not a bug. Closing it
-  requires a real tool-executing session, which this build will not
-  produce.
+- **The real tool-call payload shape — one case confirmed, others still
+  open.** Once a Meta API key was available, the project owner ran a
+  real, tool-executing session directly (`muse exec --provider meta
+  --trust-workspace --disable-approval`, outside this codebase's own
+  safety boundary — this repo's own code never runs that combination
+  itself). It produced a genuine `payload_type: "tool.result"` record
+  with clean, enumerable fields: `payload.correlation_facts.tool_name`
+  (`"write_file"`), `payload.correlation_facts.outcome` (`"success"`),
+  and `payload.edit_facts.path`/`.added`. `muse_journal.py`'s
+  `_TOOL_NAME_TO_CLAIM_TOOL` now maps exactly that one observed
+  tool_name, `write_file` → `ClaimTool.write`, extracting the path and
+  count — never `payload.text`, which is content-bearing and confirmed
+  (not guessed) to carry it. See `tests/fixtures/muse_journal/
+  real_tool_call_session.txt` (sanitized) and the tests built against it.
+  **Still genuinely open:** only `write_file` has ever been observed — a
+  shell command, a file read, or a web request were never exercised in
+  this one capture, and `_TOOL_NAME_TO_CLAIM_TOOL` is not populated with
+  a guess for any of them.
 - **The hook subprocess's input contract** (stdin vs. env vars vs. argv).
   `muse plugins hook test` — Meta's own fixture-driven harness built
   specifically so this never needs a live session — requires the plugin
