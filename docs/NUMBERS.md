@@ -85,7 +85,14 @@ case it was built to fix:
    read': 1, 'outbound_post': 1, 'pgroup_escape': 2}`, `stop_status: ok`
    — two `pgroup_escape` findings since both hops of the relay are each
    independently caught; the stop action successfully swept the escaped
-   descendants via the existing extra-pid sweep mechanism).
+   descendants via the existing extra-pid sweep mechanism). **This bundle
+   predates a same-day severity fix** (see `docs/LIMITATIONS.md`): both
+   findings show as `severity: stop` here, from when bare detachment and
+   corroborated detachment were scored identically; under the current
+   code only the decoy-corroborated one would be `stop` and the bare one
+   would be `warn` (both still fire — the fix changed severity, not
+   detection). Kept as-is, not re-verified-in-place, per the frozen-runs
+   discipline.
 
 **One declared, deliberate gap remains, consistent with existing
 disclosure style:** `record-claude`'s recorded pgid belongs to a harmless

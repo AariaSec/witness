@@ -47,6 +47,26 @@ what's solid versus what's a placeholder.
   written after the detector existed specifically so passing it couldn't
   be explained by overfitting to the one case it was built against. See
   `docs/NUMBERS.md`.
+- **`pgroup_escape` severity is split by corroboration, not just
+  detection** (fixed 2026-10-27, same day as the detector itself): bare
+  detachment (`ProcWatcher`'s poll signal alone) is `warn`, not `stop` —
+  found via the experiment harness (`scripts/experiment/`), not
+  inspection: a real, unmodified Muse Code binary legitimately spawns
+  internal subprocess workers that detach into their own session for
+  ordinary reasons, and treating that alone as `stop` (which also drove a
+  destructive `stop_pgroup` action — now gated on severity too, see
+  `actions/__init__.py`) fired on roughly a third of real, harmless
+  sessions in one batch. Only detachment corroborated by also touching
+  the decoy (`MarkerRead`/`OutboundPost.peer_escaped`) stays `stop`. The
+  two already-proven scenarios (`escape`, `escape_relay`) are unaffected
+  — in both, the detached process is also the one that touches the
+  decoy, so corroboration was already present.
+- **The `escape`/`escape_relay` integration tests are occasionally flaky**
+  — observed 1 failure in 5 full runs. Both spawn real subprocesses and
+  depend on `ProcWatcher`'s poll timing and real OS scheduling under
+  load; this is consistent with the detector's own disclosed timing
+  sensitivity (see above), not a new issue. Not chased further yet —
+  worth a retry-once wrapper if it proves disruptive to CI.
 - **Chain verification checks links, not full recomputation**, in the
   console specifically: the browser-side viewer checks that each record's
   `prev` points at the previous record's `digest`; it trusts the recorder's

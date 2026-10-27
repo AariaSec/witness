@@ -14,7 +14,7 @@ from witness.actions.receipt import Signer
 from witness.actions.stop_pgroup import stop_pgroup as _stop_pgroup
 from witness.ledger import Ledger
 from witness.listeners.marker import MarkerService
-from witness.models import ActionResult, Finding, FindingKind, Receipt, ReceiptBody
+from witness.models import ActionResult, Finding, FindingKind, Receipt, ReceiptBody, Severity
 
 POLICY: dict[FindingKind, list[str]] = {
     FindingKind.marker_read: ["close_marker"],
@@ -65,6 +65,17 @@ class ActionRunner:
             if action == "close_marker":
                 result = close_marker(self._marker, finding.seq)
             elif action == "stop_pgroup":
+                # Destructive — gated on severity, not just kind. POLICY's
+                # table presupposes a fixed severity per fkind, which held
+                # for every entry except pgroup_escape once that detector
+                # started emitting BOTH warn (bare detachment, no
+                # corroborating decoy contact) and stop (detachment +
+                # decoy contact) for the same fkind — a warn-severity
+                # finding killing the whole process group would be the
+                # exact "gate that red-X's honest sessions" failure mode
+                # this project is built to avoid, not cause.
+                if finding.severity != Severity.stop:
+                    continue
                 result = self._do_stop(finding.seq)
             else:
                 continue
