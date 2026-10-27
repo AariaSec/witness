@@ -27,6 +27,25 @@ what's solid versus what's a placeholder.
 
 ## Known gaps worth naming
 
+- **The console's receipt verification didn't match what the backend
+  actually signed, for every Receipt v0.2 bundle** (fixed 2026-10-27,
+  found while capturing video clips, not by inspection). `ReceiptBody.
+  canonical_payload()` strips a v0.2 field before signing when it's
+  exactly at its just-added default — `git_commit_sha` is null for every
+  run so far, since no lab directory is a real git repo — so pre-v0.2
+  bundles stay byte-identical. The console's own canonicalisation
+  (`verifyReceipt.ts`) never mirrored that stripping: it included
+  `"git_commit_sha":null` (genuinely present in the raw JSON) in its
+  canonical form, a byte-level divergence from what was actually signed.
+  Concretely: **both flagship real-agent bundles showed "RECEIPT
+  INVALID" in the live, deployed full console** — the share view never
+  hit this, since it doesn't render `ReceiptPanel` at all, which is why
+  it went unnoticed until someone opened the full console specifically.
+  Fixed with `stripV02FromNode`/`stripV02FromPlain` mirroring the
+  backend exactly, plus a permanent regression test
+  (`console/tests/receiptV02Interop.test.ts`) against both real
+  bundles — the existing interop test only ever covered a pre-v0.2
+  bundle, which is exactly the class of gap that let this ship.
 - **`pgroup_escape` now has a dedicated detector** (fixed 2026-10-27,
   `src/witness/detectors/pgroup_escape.py`) — this entry used to say it
   had none; left here, corrected, rather than deleted, for the same

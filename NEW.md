@@ -25,6 +25,7 @@ team built during the hackathon.
 - [x] **Console share view** (`?bundle=...&view=share`) — a clean, chrome-free deep-linkable frame around the existing "Agent said / Witness recorded" diff, used as the landing-page hero and the merge-gate step-summary deep link
 - [x] **The merge-gate step summary now links directly into the live console** for a bundle it recognizes (the two demo-PR bundles mirrored into `console/public/bundles/`, same pattern as the flagship ones) — both live demo PRs updated with working deep links
 - [x] **README documents the merge gate itself** — the real composite-action usage snippet and links to both live demo PRs, previously missing entirely despite being the project's central pivot
+- [x] **Fixed a critical, live console bug**: Receipt v0.2 verification in the browser never matched what the backend actually signed — both flagship bundles showed "RECEIPT INVALID" in the full console (found while capturing video clips, not by inspection). Fixed with a permanent regression test against both real bundles — see `docs/LIMITATIONS.md`
 
 Status checkboxes are updated as each item lands; see `git log` for the
 commit that closed each one.
