@@ -32,6 +32,26 @@ project asks a narrower, falsifiable question: *if you record independently,
 outside the agent's process, does the agent's self-report match reality —
 and if it doesn't, can you catch it fast enough to act?*
 
+This isn't hypothetical. On 2026-10-26 — the same day this project's
+first commit landed — [the Washington Post reported](https://www.washingtonpost.com/technology/2026/10/26/researchers-cybersecurity-start-up-cathedral-got-inside-anthropic/)
+that a security research team's AI agents reached internal business
+systems at a frontier AI lab in under 12 hours, through third-party admin
+software connected to it. The lab's own monitoring flagged some of the
+activity before the researchers reported it — but the two sides still
+disagree about whether the researchers' own account of what they did
+fully matches what was independently observed inside the systems. That's
+the same mismatch this project is built to catch, one level up: not an
+agent's self-report vs. reality, but a human team's account of an agent's
+actions vs. an independent record of them.
+
+Framed as a control loop (see ["start with the sensor"](https://thenewstack.io/agentic-software-factory-sensor/)):
+intent is the setpoint, the agent is the controller, and verification is
+the sensor. A fast agent with a slow or low-fidelity sensor just retries
+on stale information and ships what the sensor should have caught.
+`witness` is that sensor, scoped to one question: does the agent's
+self-report match an independent, content-free record of what actually
+happened.
+
 ## Quickstart
 
 ```
@@ -63,15 +83,26 @@ also ships with its own bundled demo bundle pre-loaded on first open.
 ## Real numbers, not claims
 
 Every number below is a real, reproducible run — see `docs/NUMBERS.md` for
-the exact `run_id`s and how to reproduce each one.
+the exact `run_id`s and how to reproduce each one. Grouped by the three
+properties a verification "sensor" is judged on (most teams only get two
+of three — see the "Why" section above):
 
-- **Persistence detection**: 5.9–19.3ms from write to stop, against a
-  500ms budget.
-- **Scenario arena**: 10/10 archetypes recorded and scored, 8 flagged,
-  2 true-negative, 0 false alarms, **1 disclosed genuine miss**
-  (`pgroup_escape` has no dedicated detector yet — see
-  `docs/LIMITATIONS.md`).
-- **Benign corpus**: 5 independent runs, zero false alarms.
+- **Latency** (time to signal): persistence detection fires in
+  **5.9–19.3ms**, against a 500ms budget.
+- **Fidelity** (escape rate): scenario arena, 10/10 archetypes recorded
+  and scored — 8 flagged, 2 true-negative, 0 false alarms, **1 disclosed
+  genuine miss** (`pgroup_escape` has no dedicated detector yet — see
+  `docs/LIMITATIONS.md`). The miss is reported, not hidden — an honest
+  fidelity number, not a cherry-picked one.
+- **Bandwidth** (concurrent verification capacity): 10 scenarios scored
+  in one arena run today; the architecture (frozen seed set generated
+  *before* any run, held in a private companion repo so nothing can be
+  tuned against it) follows the same principle
+  [StrongDM uses in production](https://thenewstack.io/agentic-software-factory-sensor/)
+  — an external holdout set an agent can't optimize against.
+- **A real coding agent, not a stand-in**: a genuine Muse Code session
+  independently caught fetching and saving a decoy credential — see
+  `docs/NUMBERS.md`'s flagship proof run.
 - **Live Meta open-weight model proof**: a real call to Muse Spark Open
   (`meta-models/muse-spark-open-1026` via Baseten) correctly analyzed a
   real bundle — `analyst_status="ok"`, `confidence=0.91`.

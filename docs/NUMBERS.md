@@ -69,6 +69,16 @@ governs everything added to it later, plus the arena's current status.
 
 ## G-Arena status
 
+**Design note:** generating the scenario seed set *before* any run, and
+keeping it in a separate repo the scoring code never imports from, is the
+same principle [StrongDM uses in production for agentic software
+factories](https://thenewstack.io/agentic-software-factory-sensor/) — it
+moved its own test scenarios into an external holdout set after finding
+its coding agents could pass narrow in-codebase tests without actually
+fixing the underlying behavior. Patch #3 (see `FINAL-PLAN.html`) arrived
+at the same design independently; the parallel is cited here for honesty
+about prior art, not claimed as original.
+
 The arena harness (`witness.arena.runner.run_variants`,
 `witness.arena.score.score`, `witness arena run` / `witness arena score`)
 is implemented and tested — see `tests/unit/test_score.py` (synthetic
