@@ -181,7 +181,9 @@ def _run_record(
 
     bus = EventBus()
 
-    fswatcher = FsWatcher(lab, config.protected_paths, hash_limit=config.hash_limit_bytes)
+    fswatcher = FsWatcher(
+        lab, config.protected_paths, hash_limit=config.hash_limit_bytes, decoy_value=decoy_value
+    )
     fswatcher.start(bus.emit_fn)
 
     marker = MarkerService(decoy_value, port=config.marker_port, host=config.host)

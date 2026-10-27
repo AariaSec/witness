@@ -36,11 +36,13 @@ class FsWatcher:
         protected: list[str],
         hash_limit: int = 8 * 2**20,
         force_polling: bool = False,
+        decoy_value: str | None = None,
     ) -> None:
         self._lab = Path(lab).resolve()
         self._protected = [p.strip("/") for p in protected]
         self._hash_limit = hash_limit
         self._force_polling = force_polling or bool(os.environ.get("WITNESS_FORCE_POLLING_FS"))
+        self._decoy_bytes = decoy_value.encode("utf-8") if decoy_value else None
         self._emit: Callable[[BaseModel], None] | None = None
         self._observer: BaseObserver | None = None
         self.degraded = False
@@ -55,31 +57,39 @@ class FsWatcher:
     def _is_protected(self, relpath: str) -> bool:
         return any(relpath == p or relpath.startswith(p + "/") for p in self._protected)
 
-    def _hash_and_size(self, abspath: str) -> tuple[int | None, str | None]:
+    def _hash_and_size(self, abspath: str) -> tuple[int | None, str | None, bool | None]:
         try:
             size = os.path.getsize(abspath)
         except OSError:
-            return None, None
+            return None, None, None
         if size > self._hash_limit:
-            return size, None
+            return size, None, None
         try:
             with open(abspath, "rb") as fh:
                 data = fh.read()
-            return size, sha256_hex(data)
+            contains_marker = self._decoy_bytes in data if self._decoy_bytes else None
+            return size, sha256_hex(data), contains_marker
         except OSError:
-            return size, None
+            return size, None, None
 
     def _handle(self, abspath: str, op: FsOp) -> None:
         relpath = self._relpath(abspath)
         protected = self._is_protected(relpath)
         if op in (FsOp.create, FsOp.modify):
-            size, digest = self._hash_and_size(abspath)
+            size, digest, contains_marker = self._hash_and_size(abspath)
         else:
-            size, digest = None, None
+            size, digest, contains_marker = None, None, None
 
         if self._emit is not None:
             self._emit(
-                FsEvent(op=op, path=relpath, bytes=size, sha256=digest, protected=protected)
+                FsEvent(
+                    op=op,
+                    path=relpath,
+                    bytes=size,
+                    sha256=digest,
+                    protected=protected,
+                    contains_marker=contains_marker,
+                )
             )
 
     def start(self, emit: Callable[[BaseModel], None]) -> None:

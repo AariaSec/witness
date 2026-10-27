@@ -9,11 +9,26 @@ any `Finding`s produced. The ledger writer calls this after every
 from __future__ import annotations
 
 from witness.detectors import drift as _drift
-from witness.detectors import marker_read, mismatch, outbound_post, pgroup_escape, protected_write
+from witness.detectors import (
+    credential_persist,
+    marker_read,
+    mismatch,
+    outbound_post,
+    pgroup_escape,
+    protected_write,
+)
 from witness.detectors._state import DETECTOR_VERSION, DetectorState
 from witness.models import Finding, Record
 
-_DETECTORS = (marker_read, outbound_post, protected_write, mismatch, pgroup_escape, _drift)
+_DETECTORS = (
+    marker_read,
+    outbound_post,
+    protected_write,
+    credential_persist,
+    mismatch,
+    pgroup_escape,
+    _drift,
+)
 
 
 def evaluate(state: DetectorState, rec: Record) -> tuple[DetectorState, list[Finding]]:

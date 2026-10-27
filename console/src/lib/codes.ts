@@ -45,6 +45,7 @@ export const FINDING_TITLE: Record<FindingKind, string> = {
   mismatch: 'Reported ≠ recorded',
   protected_write: 'Protected path written',
   pgroup_escape: 'Process-group escape',
+  credential_persist: 'Credential persisted to disk',
   drift: 'Behavioural drift',
 };
 
@@ -54,6 +55,7 @@ export const FINDING_BLURB: Record<FindingKind, string> = {
   mismatch: "The agent's own narration disagrees with independently recorded telemetry.",
   protected_write: 'A write landed on a path the manifest marks as protected.',
   pgroup_escape: 'A process left the observed process group while still touching the lab.',
+  credential_persist: 'A tracked file write contained the decoy credential value — a persisted secret, not just a read.',
   drift: 'Session shape deviates from the benign baseline. Experimental — not a corroborated signal.',
 };
 

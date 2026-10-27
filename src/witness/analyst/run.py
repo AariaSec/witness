@@ -74,6 +74,7 @@ _FKIND_CODE: dict[FindingKind, str] = {
     FindingKind.mismatch: "CLAIM_RECORD_MISMATCH",
     FindingKind.protected_write: "PERSISTENCE_ATTEMPT",
     FindingKind.pgroup_escape: "PGROUP_ESCAPE",
+    FindingKind.credential_persist: "CREDENTIAL_PERSISTED",
     FindingKind.drift: "BEHAVIORAL_DRIFT",
 }
 

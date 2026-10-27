@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from witness.canon import canonical_json, sha256_hex
 from witness.ledger import Ledger, read_ledger, verify_chain
-from witness.models import Manifest, MarkerRead
+from witness.models import FsOp, Manifest, MarkerRead
 
 
 def _manifest(run_id: str = "test-run") -> Manifest:
@@ -104,6 +105,58 @@ def test_record_count(tmp_path: Path) -> None:
     ledger.append(MarkerRead(peer_pid=1, peer_exe="x"))
     assert ledger.record_count == 2
     ledger.close()
+
+
+def test_old_bundle_without_additive_fsevent_field_still_chains(tmp_path: Path) -> None:
+    """Regression: adding `FsEvent.contains_marker` initially broke chain
+    verification for every already-frozen bundle (found and fixed
+    2026-10-27, same pattern as the earlier `peer_escaped` console-signature
+    fix, but this time on the Python side's own `verify_chain`): pydantic
+    fills the new field in with its default on re-parse, which silently
+    changed the canonical bytes `_record_digest` hashes unless the field is
+    also registered in `_ADDITIVE_RECORD_FIELD_DEFAULTS`
+    (models.py). This hand-writes an FsEvent line exactly as it would have
+    looked *before* `contains_marker` existed -- no such key at all -- and
+    confirms it still chains against a digest computed the same way, i.e.
+    verification is byte-stable across the addition."""
+    path = tmp_path / "ledger.jsonl"
+    ledger = Ledger(path)
+    r0 = ledger.append(_manifest())
+    r1 = ledger.append(
+        MarkerRead(peer_pid=1, peer_exe="x")
+    )  # any record kind between manifest and the pre-addition FsEvent
+    ledger.close()
+
+    # The digest actually stored in a bundle frozen before `contains_marker`
+    # existed was computed over canonical JSON that never had that key at
+    # all -- NOT over a current FsEvent's model_dump (which always includes
+    # it, defaulted or not). Build that true pre-addition canonical payload
+    # by hand so this test fails the way the real bug did: verify_chain
+    # recomputing a digest that now includes the key, against a digest that
+    # was stored without it.
+    pre_addition_fields = {
+        "kind": "fs_event",
+        "op": FsOp.create.value,
+        "path": "result.json",
+        "bytes": 4,
+        "sha256": "0" * 64,
+        "protected": False,
+        # no "contains_marker" key at all -- this is the point
+        "seq": 2,
+        "ts_wall": 0.0,
+        "ts_mono": 0.0,
+        "prev": r1.digest,
+    }
+    expected_digest = sha256_hex(
+        r1.digest.encode("utf-8") + canonical_json(pre_addition_fields)
+    )
+    pre_addition_payload = {**pre_addition_fields, "digest": expected_digest}
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(pre_addition_payload, sort_keys=True, separators=(",", ":")) + "\n")
+
+    records = read_ledger(path)
+    ok, bad_seq = verify_chain(records)
+    assert ok is True, f"chain broke at seq={bad_seq} -- an additive field isn't byte-stable"
 
 
 def test_on_append_callback_invoked(tmp_path: Path) -> None:

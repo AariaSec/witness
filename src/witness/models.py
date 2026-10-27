@@ -71,6 +71,7 @@ class FindingKind(StrEnum):
     mismatch = "mismatch"
     protected_write = "protected_write"
     pgroup_escape = "pgroup_escape"
+    credential_persist = "credential_persist"
     drift = "drift"
 
 
@@ -166,6 +167,13 @@ class FsEvent(Base):
     bytes: int | None = None
     sha256: Digest | None = None
     protected: bool
+    # None when the file wasn't read (over hash_limit, or an OSError) --
+    # mirrors sha256's None for the same cases. Computed from the SAME
+    # ephemeral read already done for sha256 (fswatch.py's _hash_and_size),
+    # never a separate read, never retained past that check. Feeds
+    # credential_persist (fires on True); unrelated to protected_write,
+    # which never looks at file content.
+    contains_marker: bool | None = None
 
 
 class ProcEvent(Base):
@@ -232,6 +240,7 @@ class RunEnd(Base):
 _ADDITIVE_RECORD_FIELD_DEFAULTS: dict[tuple[str, str], Any] = {
     ("marker_read", "peer_escaped"): False,
     ("outbound_post", "peer_escaped"): False,
+    ("fs_event", "contains_marker"): None,
 }
 
 

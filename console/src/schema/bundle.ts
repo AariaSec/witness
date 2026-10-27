@@ -48,6 +48,7 @@ export type FindingKind =
   | 'mismatch'
   | 'protected_write'
   | 'pgroup_escape'
+  | 'credential_persist'
   | 'drift';
 export type Severity = 'info' | 'warn' | 'stop';
 /** Loudest first. */
@@ -111,6 +112,8 @@ export interface FsEvent extends Base<'fs_event'> {
   bytes: number | null;
   sha256: Digest | null;
   protected: boolean;
+  /** true if this write's bytes contained the decoy credential value — feeds credential_persist */
+  contains_marker?: boolean | null;
 }
 
 export interface ProcEvent extends Base<'proc_event'> {
@@ -274,14 +277,17 @@ export const REQUIRED_FIELDS: { readonly [K in Kind]: readonly string[] } = {
 /**
  * Fields added to a kind after bundles with that kind were already frozen —
  * recognized (never `unexpected_key`) but never required (old bundles won't
- * have them). `peer_escaped` landed on MarkerRead/OutboundPost after every
- * currently-committed frozen/demo bundle; making it required would hard-fail
- * those with `missing_field` instead of just warning on new bundles that omit
- * it as a key, which is the backward-compat error this map exists to avoid.
+ * have them). Making any of these required would hard-fail old bundles with
+ * `missing_field` instead of just warning on new bundles that omit them,
+ * which is the backward-compat error this map exists to avoid. `peer_escaped`
+ * landed on MarkerRead/OutboundPost, and `contains_marker` on FsEvent (feeds
+ * the credential_persist detector), both after every currently-committed
+ * frozen/demo bundle.
  */
 export const OPTIONAL_FIELDS: Partial<{ readonly [K in Kind]: readonly string[] }> = {
   marker_read: ['peer_escaped'],
   outbound_post: ['peer_escaped'],
+  fs_event: ['contains_marker'],
 };
 
 export const BASE_FIELDS = ['seq', 'kind', 'ts_wall', 'ts_mono', 'prev', 'digest'] as const;

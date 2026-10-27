@@ -21,6 +21,7 @@ POLICY: dict[FindingKind, list[str]] = {
     FindingKind.outbound_post: ["close_marker", "stop_pgroup"],
     FindingKind.protected_write: ["stop_pgroup"],
     FindingKind.pgroup_escape: ["stop_pgroup"],
+    FindingKind.credential_persist: ["close_marker", "stop_pgroup"],
     FindingKind.mismatch: [],
     FindingKind.drift: [],
 }

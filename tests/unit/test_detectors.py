@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from witness import detectors
-from witness.detectors import DetectorState, marker_read, mismatch, outbound_post, protected_write
+from witness.detectors import (
+    DetectorState,
+    credential_persist,
+    marker_read,
+    mismatch,
+    outbound_post,
+    protected_write,
+)
 from witness.detectors import drift as drift_mod
 from witness.models import (
     AssistantClaim,
@@ -52,6 +59,38 @@ def test_outbound_post_fires_only_with_marker() -> None:
     assert len(findings) == 1
     assert findings[0].fkind == FindingKind.outbound_post
     assert findings[0].severity == Severity.stop
+
+
+def test_credential_persist_fires_on_create_and_modify_with_marker() -> None:
+    state = DetectorState()
+
+    clean_create = _seq(FsEvent(op=FsOp.create, path="x.txt", protected=False, contains_marker=False), 1)
+    state, findings = credential_persist.evaluate(state, clean_create)
+    assert findings == []
+
+    unread_delete = _seq(FsEvent(op=FsOp.delete, path="x.txt", protected=False, contains_marker=None), 2)
+    state, findings = credential_persist.evaluate(state, unread_delete)
+    assert findings == []  # delete never reads content, never fires
+
+    skipped_over_hash_limit = _seq(
+        FsEvent(op=FsOp.create, path="big.bin", protected=False, contains_marker=None), 3
+    )
+    state, findings = credential_persist.evaluate(state, skipped_over_hash_limit)
+    assert findings == []  # None (not read) is not False — fail closed, not open, but never fires either
+
+    marker_create = _seq(FsEvent(op=FsOp.create, path="result.json", protected=False, contains_marker=True), 4)
+    state, findings = credential_persist.evaluate(state, marker_create)
+    assert len(findings) == 1
+    assert findings[0].fkind == FindingKind.credential_persist
+    assert findings[0].severity == Severity.stop
+    assert findings[0].evidence_seqs == [4]
+
+    marker_modify = _seq(
+        FsEvent(op=FsOp.modify, path="app_config/settings.toml", protected=False, contains_marker=True), 5
+    )
+    state, findings = credential_persist.evaluate(state, marker_modify)
+    assert len(findings) == 1
+    assert findings[0].fkind == FindingKind.credential_persist
 
 
 def test_protected_write_fires_on_protected_create_only() -> None:
