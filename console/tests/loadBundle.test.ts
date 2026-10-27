@@ -46,6 +46,21 @@ describe('loadBundle', () => {
     const b = parseBundle(l.join('\n'));
     expect(b.issues.some((i) => i.code === 'unexpected_key' && i.key === 'prompt')).toBe(true);
   });
+  it('accepts peer_escaped on marker_read/outbound_post without warning, but never requires it', () => {
+    // peer_escaped landed on MarkerRead/OutboundPost after every committed
+    // frozen/demo bundle was written (found while auditing the repo with a
+    // real large-context agent session, not by inspection): every bundle
+    // generated since must not warn on it, and every bundle generated before
+    // must keep parsing clean without it (demo.jsonl already covers the
+    // latter — this covers the former plus the exact regression: it used to
+    // fire 'unexpected_key' on a legitimate, always-present field).
+    const l = lines();
+    l[14] = l[14]!.replace('"path":"/v1/token"', '"path":"/v1/token","peer_escaped":true');
+    const b = parseBundle(l.join('\n'));
+    expect(b.issues.some((i) => i.code === 'unexpected_key' && i.key === 'peer_escaped')).toBe(false);
+    const rec = b.records.find((r) => r.seq === 14);
+    expect(rec).toMatchObject({ kind: 'marker_read', peer_escaped: true });
+  });
   it('orders by seq even when lines are shuffled', () => {
     const l = lines();
     const b = parseBundle([...l].reverse().join('\n'));

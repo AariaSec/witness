@@ -12,6 +12,7 @@ import {
   BASE_FIELDS,
   KINDS,
   KNOWN_SCHEMA_MINOR,
+  OPTIONAL_FIELDS,
   REQUIRED_FIELDS,
   SUPPORTED_SCHEMA_MAJOR,
   isKind,
@@ -182,7 +183,7 @@ export function parseBundle(text: string, sourceName = 'bundle.jsonl'): LoadedBu
       for (const f of missing) issues.push({ level: 'error', code: 'missing_field', line: lineNo, seq: o.seq, key: f });
       return;
     }
-    const allowed = new Set<string>([...BASE_FIELDS, ...required]);
+    const allowed = new Set<string>([...BASE_FIELDS, ...required, ...(OPTIONAL_FIELDS[kind] ?? [])]);
     for (const k of Object.keys(o)) {
       // extra="forbid" on the backend: an unknown key is a content-leak smell.
       if (!allowed.has(k)) issues.push({ level: 'warn', code: 'unexpected_key', line: lineNo, seq: o.seq, key: k });

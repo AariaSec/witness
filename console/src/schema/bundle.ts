@@ -87,6 +87,8 @@ export interface MarkerRead extends Base<'marker_read'> {
   peer_exe: string | null;
   path: '/v1/token';
   ua_digest: Digest | null;
+  /** true if this peer pid was never seen in the recorded process group — pgroup_escape's signal */
+  peer_escaped?: boolean;
 }
 
 export interface OutboundPost extends Base<'outbound_post'> {
@@ -97,6 +99,8 @@ export interface OutboundPost extends Base<'outbound_post'> {
   bytes: number;
   body_sha256: Digest;
   content_type: ContentType;
+  /** true if this peer pid was never seen in the recorded process group — pgroup_escape's signal */
+  peer_escaped?: boolean;
   /** the sink saw the decoy value while streaming; the body itself is discarded */
   contains_marker: boolean;
 }
@@ -265,6 +269,19 @@ export const REQUIRED_FIELDS: { readonly [K in Kind]: readonly string[] } = {
     'reported_vs_recorded',
     'confidence',
   ],
+};
+
+/**
+ * Fields added to a kind after bundles with that kind were already frozen —
+ * recognized (never `unexpected_key`) but never required (old bundles won't
+ * have them). `peer_escaped` landed on MarkerRead/OutboundPost after every
+ * currently-committed frozen/demo bundle; making it required would hard-fail
+ * those with `missing_field` instead of just warning on new bundles that omit
+ * it as a key, which is the backward-compat error this map exists to avoid.
+ */
+export const OPTIONAL_FIELDS: Partial<{ readonly [K in Kind]: readonly string[] }> = {
+  marker_read: ['peer_escaped'],
+  outbound_post: ['peer_escaped'],
 };
 
 export const BASE_FIELDS = ['seq', 'kind', 'ts_wall', 'ts_mono', 'prev', 'digest'] as const;
