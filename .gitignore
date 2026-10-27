@@ -9,6 +9,9 @@ runs/*
 !runs/frozen/
 !runs/frozen/**
 
+# arena working output — frozen copies land in runs/frozen/arena-<date>/ instead
+arena_runs/
+
 # build artifacts
 node_modules/
 dist/
