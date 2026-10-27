@@ -24,10 +24,12 @@ into an actual 0:00–0:05 title-card beat so the video itself satisfies
 the rule, and the Hook shortened from :20 to :15 to hold 3:00 total.
 (5) A fifth pass (2026-10-27): used Meta's own Muse Spark Open (via
 Baseten, 7/10) and a real `muse exec` adversarial-judge session (billed
-on the Meta Model API dashboard directly, 6/10, full critique at
-`/tmp/muse-judge-ws/CRITIQUE.md` at review time) for independent
-critiques. Acted on: dropped the Claude Code quote aside entirely (two
-independent reviews now flagged the same unverifiable-quote risk);
+on the Meta Model API dashboard directly, 6/10) for independent
+critiques — both run in scratch workspaces, not committed anywhere;
+this paragraph and the commits below are the durable record of what
+each found and what changed because of it. Acted on: dropped the Claude
+Code quote aside entirely (two independent reviews now flagged the same
+unverifiable-quote risk);
 tightened "zero recorder-core diff" to state plainly what did change (one
 new parser); put the hook's true base rate on screen (0/16 in the
 follow-up batch — it's the outlier case); named exactly why PR #2 is red
