@@ -15,10 +15,22 @@ clearly attribute which agent said what. Rewritten: the hook now opens on
 a fully chain-verified, judge-checkable finding instead; the Claude Code
 quote survives only as explicitly-labeled color later, never as proof.
 Target runtime: 3:00. Every number/claim below traces to a file or URL in
-this repo — nothing here is aspirational.
+this repo — nothing here is aspirational. (4) Confirmed via the official
+Cerebral Valley / Meta office-hours answer (2026-10-26): the hackathon
+rule requiring disclosure of pre-existing work is real and the video
+itself — not just the README — must open with it. Previously this was a
+documentation-only note above the Hook with no allocated runtime; moved
+into an actual 0:00–0:05 title-card beat so the video itself satisfies
+the rule, and the Hook shortened from :20 to :15 to hold 3:00 total.
 
-**Required opening line (hackathon rule, not optional):**
+---
 
+## 0:00–0:05 — Required disclosure (hackathon rule, not optional)
+
+**Visual:** plain title card, no logo animation yet — text on screen,
+read aloud in voiceover, before the cold open.
+
+**On-screen text / voiceover:**
 > Everything in this repository was built this week, starting at the
 > October 26th kickoff. The founder also runs an existing AI-agent-
 > security company, AariaSec — no code, schema, or prompt from that
@@ -26,7 +38,7 @@ this repo — nothing here is aspirational.
 
 ---
 
-## 0:00–0:20 — Hook
+## 0:05–0:20 — Hook
 
 **Revised after a 3-model review round surfaced a real structural risk:**
 the original hook opened on a direct quote from Claude Code's final
@@ -222,6 +234,9 @@ generalizes).
 
 ## Capture checklist (do these in order, before editing)
 
+- [ ] Disclosure title card (0:00–0:05): plain text card with the
+      required-disclosure line, no clip needed — just a title-card render,
+      first frame of the edit.
 - [ ] Hook shot: `?bundle=bundles/muse-real-agent-proof.jsonl&view=share`
       (the console's clean share-view mode — no console chrome, just the
       diff) zoomed/cropped to the "decoy key fetched" + two "never
