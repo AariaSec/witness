@@ -101,6 +101,7 @@ def _run_record(
     tail_parser: ClaimParser | None = None,
     extra_env: dict[str, str] | None = None,
     coverage: list[Watcher] | None = None,
+    simulated: bool = True,
 ) -> Path:
     """Core `record` orchestration. Returns the run directory.
 
@@ -225,7 +226,7 @@ def _run_record(
         policy_hash=_policy_hash(),
         assistant_argv_digest=sha256_hex(canonical_json(list(assistant_cmd))),
         degraded=degraded,
-        simulated=True,
+        simulated=simulated,
         pubkey=signer.public_key_b64,
     )
     ledger.append(manifest)
@@ -443,6 +444,7 @@ def record_muse(
         tail_paths=[log_path],
         tail_parser=MuseJournalClaimParser(),
         extra_env=extra_env,
+        simulated=False,
     )
     typer.echo(f"recorded: {run_dir}")
     typer.echo(f"real muse session log: {log_path}", err=True)
@@ -528,6 +530,7 @@ def record_claude(
         # own placeholder process, not the operator's real `claude`
         # process tree — see this function's own docstring.
         coverage=[Watcher.fs, Watcher.marker, Watcher.sink],
+        simulated=False,
     )
     typer.echo(f"recorded: {run_dir}")
     typer.echo(f"tailed real Claude Code session log: {session_log}", err=True)

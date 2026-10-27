@@ -230,6 +230,47 @@ export function ReceiptPanel({ bundle, cursor }: ReceiptPanelProps) {
               </span>
             </div>
           </div>
+          {r.body.git_commit_sha || r.body.git_tree_digest || r.body.coverage || r.body.changed_file_digests ? (
+            <div className="space-y-1.5 border-t border-line px-5 py-3 font-mono text-[10.5px] text-fg-4">
+              <div className="eyebrow text-fg-5">Receipt v0.2 — git-tree binding</div>
+              {r.body.git_commit_sha ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-24 shrink-0">commit</span>
+                  <span className="truncate text-fg-3">{r.body.git_commit_sha}</span>
+                </div>
+              ) : null}
+              {r.body.git_tree_digest ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-24 shrink-0">tree digest</span>
+                  <span className="truncate text-fg-3" title={r.body.git_tree_digest}>
+                    {shortHash(r.body.git_tree_digest, 20)}
+                  </span>
+                </div>
+              ) : null}
+              {r.body.coverage ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="w-24 shrink-0">watchers</span>
+                  {r.body.coverage.map((w) => (
+                    <span key={w} className="chip">
+                      {w}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {r.body.changed_file_digests && Object.keys(r.body.changed_file_digests).length ? (
+                <div className="flex flex-wrap items-start gap-1.5">
+                  <span className="w-24 shrink-0 pt-0.5">attested files</span>
+                  <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                    {Object.entries(r.body.changed_file_digests).map(([path, digest]) => (
+                      <span key={path} className="chip" title={digest}>
+                        {path}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : null}
     </section>

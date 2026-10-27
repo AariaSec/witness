@@ -173,6 +173,11 @@ export interface ReceiptBody {
   policy_hash: Digest;
   signed_at: number;
   pubkey: string;
+  /** Receipt v0.2, additive — absent on pre-v0.2 receipts. */
+  git_commit_sha?: string | null;
+  git_tree_digest?: string | null;
+  changed_file_digests?: Record<string, string>;
+  coverage?: string[];
 }
 
 export interface Receipt extends Base<'receipt'> {
