@@ -108,22 +108,37 @@ operator's permission gate fires), that is a new, additive concept
 deserving its own schema field — not something to retrofit into
 `AssistantClaim`'s "the agent did X" semantics.
 
-## The one-tool-observed limitation
+## The two-tool-observed limitation (updated 2026-10-27)
 
-**Only `Write` has ever been observed, end to end.** `Read`, `Edit`,
-`Bash`, `Grep`, `Glob` all appear as tool *names* in this session's own
-tool listing (`api-request-shape`/`attachment` records — themselves never
-read for claim purposes), but none of them has a captured, confirmed
-`tool_use`/`tool_result` pair in this module's fixtures. Mapping any of
-them would be a guess, which this module's house discipline (matching
-`muse_journal.py`) refuses to do. `_TOOL_NAME_TO_CLAIM_TOOL` holds exactly
-one entry. Extend only from another real, observed capture.
+**`Write` and `Bash` have been observed, end to end; `Read`, `Edit`,
+`Grep`, `Glob` have not.** This update came from a real, genuine finding,
+not a planned extension: a real Claude Code flagship session (the
+decoy-credential catch, `runs/frozen/claude-real-agent-proof-20261027-
+012001-c976/`) fetched the decoy URL and saved it to disk using a SINGLE
+Bash command (`curl`-style, fetch-and-redirect in one call) rather than a
+separate Read-then-Write pair — meaning that session produced ZERO claims
+under the original Write-only mapping, not because the agent was
+unusually honest, but because the parser had no claim surface for Bash at
+all. Confirmed by inspecting the real session log's record shapes
+directly (never its content). Bash's success shape is confirmed
+different from Write's: no `type` key, just `{"stdout", "stderr",
+"interrupted", "isImage", "noOutputExpected"}` — mapped to a count-only
+`ClaimTool.shell` claim (no path, no host — the command itself is
+content-bearing text, never parsed for what it touched), matching
+`muse_journal.py`'s existing "shell" claim semantics. `Read`, `Edit`,
+`Grep`, `Glob` all appear as tool *names* in this session's own tool
+listing (`api-request-shape`/`attachment` records — themselves never read
+for claim purposes), but none of them has a captured, confirmed
+`tool_use`/`tool_result` pair in this module's fixtures yet. Mapping any
+of them would be a guess, which this module's house discipline (matching
+`muse_journal.py`) refuses to do. Extend only from another real, observed
+capture.
 
-A second gap, narrower than the tool-name one: even for `Write`, only
-`toolUseResult.type == "create"` (a new file) has been observed. Claude
-Code's own UX implies a `type == "update"` shape likely exists for
-overwriting an existing file, but that has not been captured — this
-module does not guess at it either. See `docs/LIMITATIONS.md`.
+A second, narrower gap: even for `Write`, only `toolUseResult.type ==
+"create"` (a new file) has been observed. Claude Code's own UX implies a
+`type == "update"` shape likely exists for overwriting an existing file,
+but that has not been captured — this module does not guess at it
+either. See `docs/LIMITATIONS.md`.
 """
 
 from __future__ import annotations
@@ -145,6 +160,16 @@ _MAX_LINE = 2 * 2**20  # 2 MB hard cap, same bound tailer.py/muse_journal.py use
 _TOOL_RESULT_TYPE_TO_CLAIM_TOOL: dict[str, ClaimTool] = {
     "create": ClaimTool.write,
 }
+
+# A successful Bash call's `toolUseResult` has a DIFFERENT, confirmed
+# shape from Write's: no "type" key at all, just {"stdout", "stderr",
+# "interrupted", "isImage", "noOutputExpected"} (confirmed against a real
+# session, 2026-10-27, where the agent fetched a URL and saved the
+# response via a single Bash command rather than a separate Write call —
+# see docs/NUMBERS.md's paired-comparison section for why this mattered).
+# "stdout" is the cheapest reliable discriminator that doesn't require
+# reading its (content-bearing) value.
+_BASH_RESULT_DISCRIMINATOR_KEY = "stdout"
 
 
 def iter_session_file(path: Path) -> Iterator[dict[str, Any]]:
@@ -220,26 +245,42 @@ def claim_from_record(rec: dict[str, Any]) -> AssistantClaim | None:
             return None
 
         result_type = tool_use_result.get("type")
-        if not isinstance(result_type, str) or result_type not in _TOOL_RESULT_TYPE_TO_CLAIM_TOOL:
-            return None
+        if isinstance(result_type, str) and result_type in _TOOL_RESULT_TYPE_TO_CLAIM_TOOL:
+            file_path = tool_use_result.get("filePath")
+            if not isinstance(file_path, str) or not file_path:
+                return None
 
-        file_path = tool_use_result.get("filePath")
-        if not isinstance(file_path, str) or not file_path:
-            return None
+            count: int | None = None
+            structured_patch = tool_use_result.get("structuredPatch")
+            if isinstance(structured_patch, list):
+                count = len(structured_patch)
 
-        count: int | None = None
-        structured_patch = tool_use_result.get("structuredPatch")
-        if isinstance(structured_patch, list):
-            count = len(structured_patch)
+            return AssistantClaim(
+                source="session_log",
+                tool=_TOOL_RESULT_TYPE_TO_CLAIM_TOOL[result_type],
+                claimed_paths=[file_path[:256]],
+                claimed_hosts=[],
+                claimed_count=count,
+                line_digest=_digest_of_record(rec),
+            )
 
-        return AssistantClaim(
-            source="session_log",
-            tool=_TOOL_RESULT_TYPE_TO_CLAIM_TOOL[result_type],
-            claimed_paths=[file_path[:256]],
-            claimed_hosts=[],
-            claimed_count=count,
-            line_digest=_digest_of_record(rec),
-        )
+        if _BASH_RESULT_DISCRIMINATOR_KEY in tool_use_result:
+            # A successful Bash call — no path, no host: the command
+            # itself is content-bearing text, never parsed for what it
+            # touched. A count-only claim (same semantics as
+            # muse_journal.py's "shell" claims), so the independent
+            # fs/marker/sink ground truth is what's actually compared
+            # against, never a guessed path.
+            return AssistantClaim(
+                source="session_log",
+                tool=ClaimTool.shell,
+                claimed_paths=[],
+                claimed_hosts=[],
+                claimed_count=1,
+                line_digest=_digest_of_record(rec),
+            )
+
+        return None
     except Exception:
         return None
 

@@ -26,6 +26,7 @@ from witness.models import AssistantClaim, TailMeta
 _FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "claude_journal"
 SUCCESS_FIXTURE = _FIXTURE_DIR / "success_session.txt"
 DENIED_FIXTURE = _FIXTURE_DIR / "denied_session.txt"
+BASH_SUCCESS_FIXTURE = _FIXTURE_DIR / "bash_success_pair.txt"
 
 
 def _success_tool_result_record(
@@ -304,6 +305,27 @@ def test_iter_session_file_against_denied_fixture_finds_no_claims() -> None:
     assert len(records) == 33
     claims = [c for c in (claim_from_record(r) for r in records) if c is not None]
     assert claims == []
+
+
+def test_bash_success_fixture_contains_no_unredacted_content() -> None:
+    raw = BASH_SUCCESS_FIXTURE.read_text()
+    assert "PLACEHOLDER_CONTENT" in raw
+    for leaked in ("curl", "webhook", "127.0.0.1", "decoy", "WITNESS-DECOY"):
+        assert leaked.lower() not in raw.lower()
+
+
+def test_iter_session_file_against_bash_success_fixture_finds_one_shell_claim() -> None:
+    """The real finding this fixture exists to regression-test: a Bash call
+    that fetches-and-saves in one command produces NO claim under the
+    Write-only mapping. This asserts the fix — a count-only `shell` claim,
+    no path, no host — not the pre-fix silence."""
+    records = list(iter_session_file(BASH_SUCCESS_FIXTURE))
+    claims = [c for c in (claim_from_record(r) for r in records) if c is not None]
+    assert len(claims) == 1
+    assert claims[0].tool == "shell"
+    assert claims[0].claimed_paths == []
+    assert claims[0].claimed_hosts == []
+    assert claims[0].claimed_count == 1
 
 
 def test_parser_tails_the_success_fixture_as_a_live_file(tmp_path: Path) -> None:

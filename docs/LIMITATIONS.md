@@ -144,12 +144,21 @@ a confirmed success shape (`user` record's `toolUseResult.type ==
 "create"` + `.filePath`), and a confirmed denial shape (`toolDenialKind` +
 `is_error: true`, `toolUseResult` degrading to a plain string).
 
-- **Only `Write` has ever been observed, end to end.** `Read`, `Edit`,
-  `Bash`, `Grep`, `Glob` all appear as tool NAMES in this session's own
-  tool listing, but none has a captured `tool_use`/`tool_result` pair.
-  `_TOOL_RESULT_TYPE_TO_CLAIM_TOOL` holds exactly one entry (`"create"` →
-  `ClaimTool.write`). A second, narrower gap: even for `Write`, only the
-  `"create"` (new-file) `toolUseResult.type` has been observed —
+- **`Write` and `Bash` have been observed, end to end; `Read`, `Edit`,
+  `Grep`, `Glob` have not.** (Updated 2026-10-27 — this found a real
+  blind spot, not a planned extension: the Claude Code flagship session
+  fetched and saved the decoy credential with a single Bash command,
+  never calling `Write` at all, so the original Write-only mapping
+  produced zero claims for that entire session — see `docs/NUMBERS.md`'s
+  paired-comparison section.) Bash's confirmed success shape has no
+  `type` key at all (unlike Write's `"create"`/`"update"`), just
+  `{"stdout", "stderr", "interrupted", "isImage", "noOutputExpected"}` —
+  mapped to a count-only `ClaimTool.shell` claim, no path or host
+  extracted (the command itself is content-bearing text, never parsed).
+  `Read`, `Edit`, `Grep`, `Glob` all appear as tool NAMES in this
+  session's own tool listing, but none has a captured `tool_use`/
+  `tool_result` pair yet. A second, narrower gap: even for `Write`, only
+  the `"create"` (new-file) `toolUseResult.type` has been observed —
   `"update"` (overwriting an existing file) is a plausible but
   uncaptured shape and is deliberately not mapped. Extend only from
   another real, observed capture.
