@@ -46,6 +46,14 @@ REAL_TOOL_CALL_FIXTURE = (
     Path(__file__).parent.parent / "fixtures" / "muse_journal" / "real_tool_call_session.txt"
 )
 
+# A third capture, from the flagship real-agent run
+# (`runs/frozen/muse-real-agent-proof-20261026-185538-7c88/`): a DIFFERENT
+# real record shape (`tool_batch.effect.started`), same sanitization
+# discipline.
+REAL_TOOL_BATCH_FIXTURE = (
+    Path(__file__).parent.parent / "fixtures" / "muse_journal" / "real_tool_batch_session.txt"
+)
+
 
 def _flat_record(payload_type: str = "runtime.session.metadata", **payload: object) -> dict:
     return {
@@ -377,6 +385,110 @@ def test_parser_tails_the_real_tool_call_fixture_and_emits_one_claim(tmp_path: P
         assert len(claims) == 1
         assert claims[0].tool == "write"
         assert claims[0].claimed_paths == ["hello.txt"]
+        assert not any(
+            isinstance(e, TailMeta) and e.event == "parse_error" for e in events
+        )
+    finally:
+        tailer.stop()
+
+
+# --- against the second real capture: tool_batch.effect.started shape ----
+
+
+def test_real_tool_batch_fixture_contains_no_unredacted_prose() -> None:
+    raw = REAL_TOOL_BATCH_FIXTURE.read_text()
+    assert "There is a webhook" not in raw
+    assert "WITNESS-DECOY" not in raw
+
+
+def test_claim_from_inner_record_recognizes_real_read_file_tool_batch() -> None:
+    rec = {
+        "payload_type": "tool_batch.effect.started",
+        "payload": {
+            "kind": "tool_batch_effect",
+            "record": {
+                "kind": "started",
+                "tool_name": "read_file",
+                "parallel_profile": {
+                    "kind": "file_read",
+                    "subject": "workspace:app_config/settings.toml",
+                },
+            },
+        },
+    }
+    claim = claim_from_inner_record(rec)
+    assert claim is not None
+    assert claim.tool == "read"
+    assert claim.claimed_paths == ["app_config/settings.toml"]
+
+
+def test_claim_from_inner_record_recognizes_real_bash_tool_batch_no_path() -> None:
+    # `bash` calls carry no `subject` in this shape — a shell claim with
+    # no claimed path is still a valid, honest claim (not every tool
+    # claim has a path).
+    rec = {
+        "payload_type": "tool_batch.effect.started",
+        "payload": {
+            "kind": "tool_batch_effect",
+            "record": {
+                "kind": "started",
+                "tool_name": "bash",
+                "parallel_profile": {"kind": "ineligible"},
+            },
+        },
+    }
+    claim = claim_from_inner_record(rec)
+    assert claim is not None
+    assert claim.tool == "shell"
+    assert claim.claimed_paths == []
+
+
+def test_claim_from_inner_record_recognizes_real_search_tool_batch() -> None:
+    rec = {
+        "payload_type": "tool_batch.effect.started",
+        "payload": {
+            "kind": "tool_batch_effect",
+            "record": {
+                "kind": "started",
+                "tool_name": "search",
+                "parallel_profile": {"kind": "file_read", "subject": "workspace:."},
+            },
+        },
+    }
+    claim = claim_from_inner_record(rec)
+    assert claim is not None
+    assert claim.tool == "search"
+    assert claim.claimed_paths == ["."]
+
+
+def test_iter_session_file_against_real_tool_batch_fixture_finds_five_claims() -> None:
+    records = list(iter_session_file(REAL_TOOL_BATCH_FIXTURE))
+    assert len(records) > 0
+    claims = [c for c in (claim_from_inner_record(r) for r in records) if c is not None]
+    # 3 bash + 1 read_file + 1 search = 5 "started" events, all claim-mapped.
+    assert len(claims) == 5
+    tools = sorted(c.tool.value for c in claims)
+    assert tools == ["read", "search", "shell", "shell", "shell"]
+
+
+def test_parser_tails_the_real_tool_batch_fixture_as_a_live_file(tmp_path: Path) -> None:
+    from witness.tailer import Tailer
+
+    target = tmp_path / "session.jsonl"
+    target.write_text("")
+    events: list[AssistantClaim | TailMeta] = []
+    tailer = Tailer([target], parser=MuseJournalClaimParser())
+    tailer.start(lambda rec: events.append(rec))
+    try:
+        with open(target, "a") as fh:
+            fh.write(REAL_TOOL_BATCH_FIXTURE.read_text())
+        import time
+
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            time.sleep(0.05)
+        claims = [e for e in events if isinstance(e, AssistantClaim)]
+        assert len(claims) == 5
         assert not any(
             isinstance(e, TailMeta) and e.event == "parse_error" for e in events
         )

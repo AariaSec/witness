@@ -43,11 +43,17 @@ what's solid versus what's a placeholder.
   specified algorithm. It's good enough to drive the demo honestly, not
   good enough to call a proof.
 
-## Muse Code integration (added 2026-10-26)
+## Muse Code integration (added 2026-10-26, closed the same day)
 
-What's real as of this pass, all against a genuine, locally installed
-`muse` (Meta's coding-agent CLI, v1.4.13) — never a live, tool-executing
-session (see the safety boundary this work operated under):
+What's real against a genuine, locally installed `muse` (Meta's
+coding-agent CLI, v1.4.13) — **including, as of later the same day, a
+real, tool-executing `--provider meta` session, end to end**
+(`witness record-muse`, `runs/frozen/muse-real-agent-proof-20261026-185538-7c88/`
+— a real agent fetched a decoy credential and saved it to a tracked
+file, independently detected). The "never a live session" boundary below
+describes this codebase's OWN subprocess calls (it still never passes
+`--disable-approval`/`--disable-sandbox` itself — the project owner ran
+that combination directly, by hand, exactly once this was needed):
 
 - **`src/witness/muse_journal.py`** correctly unwraps a real
   `session.jsonl` file: the large majority of lines are already a flat

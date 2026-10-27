@@ -78,31 +78,36 @@ only a bounded, enumerated shape plus a digest ever survives, mirroring
 
 ## What this parser does NOT yet do (the tool-call gap)
 
-**Partially closed 2026-10-26.** A real, tool-executing session (`muse
-exec --provider meta --trust-workspace --disable-approval`, run by the
-user directly — not by this codebase, which stays within its own
-sandbox-preserving boundary) produced a genuine `tool.result` record:
+**Closed 2026-10-26** against two independent real, tool-executing
+sessions (`muse exec --provider meta --trust-workspace
+--disable-approval`, run by the user directly — not by this codebase,
+which stays within its own sandbox-preserving boundary), revealing TWO
+distinct real record shapes that both carry a plain `tool_name` string:
 
 ```json
 {"payload_type":"tool.result","payload":{"kind":"tool_result",
  "call_id":"call_...","text":"<content-bearing, never stored>",
  "edit_facts":{"tool_name":"write_file","path":"hello.txt","added":1},
  "correlation_facts":{"tool_name":"write_file","outcome":"success"}}}
+
+{"payload_type":"tool_batch.effect.started","payload":{"kind":"tool_batch_effect",
+ "record":{"kind":"started","tool_name":"read_file",
+ "parallel_profile":{"kind":"file_read","subject":"workspace:app_config/settings.toml"}}}}
 ```
 
-`correlation_facts.tool_name` is the clean, enumerable signal —
-`_PAYLOAD_TYPE_TO_CLAIM_TOOL` now maps the one tool_name actually
-observed, `"write_file"` → `ClaimTool.write`, extracting
-`edit_facts.path` (bounded, truncated — a path, not content) and
-`edit_facts.added` as `claimed_count`. `payload.text` is a content-bearing
-field (confirmed here, not guessed) and is never read into any emitted
-record, same discipline as every other content field in this module.
+`_TOOL_NAME_TO_CLAIM_TOOL` now maps four real, observed tool_names:
+`write_file` → write, `read_file` → read, `search` → search, `bash` →
+shell — confirmed across a file-write task and a separate
+search-then-read-then-fetch task. Paths come from `edit_facts.path` (first
+shape) or `parallel_profile.subject`'s `workspace:` prefix (second shape)
+— bounded, truncated path strings, never content. `payload.text` (first
+shape) is content-bearing (confirmed, not guessed) and is never read into
+any emitted record.
 
-**Still genuinely open:** only `write_file` has been observed. Other
-`tool_name` values (a shell command, a file read, a web request) were
-never exercised in this one capture and are NOT guessed at —
-`_PAYLOAD_TYPE_TO_CLAIM_TOOL` has exactly one entry, not a speculative
-full set. See `docs/LIMITATIONS.md`.
+**Still genuinely open:** no direct network-fetch tool_name was ever
+observed (the real session that fetched a URL did so via `bash`, not a
+dedicated HTTP tool) — a tool_name that genuinely performs a bare HTTP
+request is not in this table. See `docs/LIMITATIONS.md`.
 """
 
 from __future__ import annotations
@@ -125,14 +130,22 @@ _MAX_LINE = 2 * 2**20  # 2 MB hard cap, same bound tailer.py uses
 # deliberately NOT listed here.
 _PAYLOAD_TYPE_TO_CLAIM_TOOL: dict[str, ClaimTool] = {}
 
-# Real `payload.correlation_facts.tool_name` values (payload_type
-# `"tool.result"`) confirmed, by an actual observed capture, to correspond
-# to a given `ClaimTool`. Confirmed 2026-10-26 against a real
-# `muse exec --provider meta` session: `write_file` creating a new file.
-# Extend only from another observed capture — a shell command, a file
-# read, a web request were never exercised and are not guessed at here.
+# Real `tool_name` values confirmed, by an actual observed capture, to
+# correspond to a given `ClaimTool`. Two independent real record shapes
+# both carry a `tool_name` string — `payload.correlation_facts.tool_name`
+# on `payload_type: "tool.result"`, and `payload.record.tool_name` on
+# `payload_type: "tool_batch.effect.started"` — and this one table serves
+# both (see `_claim_tool_for`). Confirmed 2026-10-26 against two real
+# `muse exec --provider meta` sessions: `write_file` creating a new file
+# (session 1), and `bash`/`read_file`/`search` (session 2, a task that
+# searched the workspace, read a config file, then shelled out to fetch a
+# URL). Extend only from another observed capture, never a guess — e.g.
+# a direct HTTP-fetch tool distinct from `bash` was never observed.
 _TOOL_NAME_TO_CLAIM_TOOL: dict[str, ClaimTool] = {
     "write_file": ClaimTool.write,
+    "read_file": ClaimTool.read,
+    "search": ClaimTool.search,
+    "bash": ClaimTool.shell,
 }
 
 # Real `payload.event.kind` values (nested under a `runtime.session`
@@ -231,6 +244,13 @@ def _claim_tool_for(rec: dict[str, Any]) -> ClaimTool | None:
                 if isinstance(tool_name, str) and tool_name in _TOOL_NAME_TO_CLAIM_TOOL:
                     return _TOOL_NAME_TO_CLAIM_TOOL[tool_name]
 
+        if payload_type == "tool_batch.effect.started":
+            record = payload.get("record")
+            if isinstance(record, dict):
+                tool_name = record.get("tool_name")
+                if isinstance(tool_name, str) and tool_name in _TOOL_NAME_TO_CLAIM_TOOL:
+                    return _TOOL_NAME_TO_CLAIM_TOOL[tool_name]
+
         if payload.get("kind") == "run":
             event = payload.get("event")
             if isinstance(event, dict):
@@ -263,7 +283,8 @@ def claim_from_inner_record(rec: dict[str, Any]) -> AssistantClaim | None:
         hosts: list[str] = []
         count: int | None = None
 
-        if rec.get("payload_type") == "tool.result":
+        payload_type = rec.get("payload_type")
+        if payload_type == "tool.result":
             edit_facts = payload.get("edit_facts")
             if isinstance(edit_facts, dict):
                 path = edit_facts.get("path")
@@ -272,6 +293,16 @@ def claim_from_inner_record(rec: dict[str, Any]) -> AssistantClaim | None:
                 added = edit_facts.get("added")
                 if isinstance(added, int):
                     count = added
+        elif payload_type == "tool_batch.effect.started":
+            record_payload = payload.get("record")
+            if isinstance(record_payload, dict):
+                profile = record_payload.get("parallel_profile")
+                if isinstance(profile, dict):
+                    subject = profile.get("subject")
+                    # Confirmed shape: "workspace:<relative path>" — strip
+                    # the scheme prefix, never store it as free text.
+                    if isinstance(subject, str) and subject.startswith("workspace:"):
+                        paths = [subject[len("workspace:") :]]
         elif isinstance(payload.get("count"), int):
             count = payload["count"]
 

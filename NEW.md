@@ -14,7 +14,7 @@ team built during the hackathon.
 - [x] Scenario arena: frozen-rule-set variant generation (private) + scoring (flagged/missed/false-alarm/time-to-stop), honest about a genuine miss
 - [x] Console: bundle viewer, timeline, claim-diff, receipt verification (client-side, real Ed25519), drift panel
 - [x] Official frozen arena run (`runs/frozen/arena-20261026/`, 10 real run_ids) + a 5-run benign corpus (`corpus/benign/`) — see `docs/NUMBERS.md`
-- [x] Real Muse Code integration: `session.jsonl` envelope/flat-record parser (`src/witness/muse_journal.py`), a validated native plugin declaring all 5 observer hooks (`muse-plugin/`, clean `muse plugins validate`), a real tool-call mapping confirmed against a genuine tool-executing session (`write_file` → `ClaimTool.write`), and a `witness record-muse` command that records a real Muse Code session end-to-end (deterministic session-log path, real `Tailer` wiring) — see `docs/LIMITATIONS.md` for the one tool_name still unobserved
+- [x] Real Muse Code integration: `session.jsonl` envelope/flat-record parser (`src/witness/muse_journal.py`), a validated native plugin declaring all 5 observer hooks (`muse-plugin/`), a real tool-call mapping (`write_file` → `ClaimTool.write`), and a `witness record-muse` command — all proven against **a genuine Muse Code agent catching and saving a real decoy credential**, independently detected end-to-end (`runs/frozen/muse-real-agent-proof-20261026-185538-7c88/`) — see `docs/NUMBERS.md` for the full story
 
 Status checkboxes are updated as each item lands; see `git log` for the
 commit that closed each one.
