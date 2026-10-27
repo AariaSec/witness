@@ -90,12 +90,34 @@ runs:
         echo "result=$RESULT" >> "$GITHUB_OUTPUT"
         echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
+        # Best-effort deep link into the live console: only for bundles
+        # already mirrored there (console/public/bundles/, same-origin —
+        # the console's CSP is connect-src 'self', so it can never fetch an
+        # arbitrary PR-branch file from GitHub directly). Falls back to a
+        # generic console link + drag-and-drop note for anything else,
+        # rather than a link that would silently 404.
+        BUNDLE_PATH="${{ inputs.bundle-path }}"
+        CONSOLE_URL="https://aariasec.github.io/witness/"
+        case "$BUNDLE_PATH" in
+          *demo-green*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/demo-green.jsonl" ;;
+          *demo-red*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/demo-red.jsonl" ;;
+          *muse-real-agent-proof*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/muse-real-agent-proof.jsonl" ;;
+          *claude-real-agent-proof*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/claude-real-agent-proof.jsonl" ;;
+          *) CONSOLE_LINK="" ;;
+        esac
+
         {
           echo "### witness verify — $RESULT (exit $EXIT_CODE)"
           echo ""
           echo '```'
           echo "$OUTPUT"
           echo '```'
+          echo ""
+          if [ -n "$CONSOLE_LINK" ]; then
+            echo "[View this receipt in the console →]($CONSOLE_LINK)"
+          else
+            echo "[Open the live console →]($CONSOLE_URL) — drag-and-drop \`$BUNDLE_PATH\` from this PR's branch to view it (not yet mirrored to a same-origin deep link)."
+          fi
         } >> "$GITHUB_STEP_SUMMARY"
 
         exit "$EXIT_CODE"
