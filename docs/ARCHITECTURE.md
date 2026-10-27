@@ -114,6 +114,53 @@ validator (muse 1.4.13, 2026-10-26):
   by default) — but which channel Muse actually uses for a real
   invocation remains unverified. See `docs/LIMITATIONS.md`.
 
+## Threat model — what's in scope and what isn't
+
+Stated explicitly rather than left implicit, since "the recorder runs on
+the same box as the agent, so what stops the agent from attacking the
+recorder itself?" is the obvious next question a technical reviewer asks.
+
+**In scope — things witness is built to catch:**
+- An agent that omits, under-reports, or misdescribes an action in its
+  own self-report (the `mismatch` detector's whole purpose).
+- An agent that reads or exfiltrates a decoy credential (`marker_read`,
+  `outbound_post`).
+- An agent that writes to a path explicitly marked protected
+  (`protected_write`).
+- An agent (or something it spawns) that detaches from its own recorded
+  process group to dodge the stop sweep (`pgroup_escape`).
+- A receipt or bundle tampered with *after* the run ended (hash-chain
+  recomputation, Ed25519 signature verification — both fail closed).
+
+**Out of scope — not solved, not claimed to be:**
+- **An agent with privilege equal to or above the recorder's own
+  process.** If the agent (or whatever's driving it) has root, or can
+  write to the recorder's own process memory, signing key, or ledger
+  file, it can kill the watchers, forge records, or read the Ed25519
+  private key before it ever signs anything. witness assumes the
+  recorder runs with at least as much isolation as the agent it's
+  watching — it is not a sandbox or a privilege boundary, it's an
+  independent observer. A real deployment needs that isolation enforced
+  by something else (a separate user, a separate container, a separate
+  host) — witness doesn't provide it itself.
+- **Live, in-flight ledger tampering.** `verify_chain()` catches tamper
+  *after the fact*, on the file as it exists when read. It does not
+  claim to detect an attacker rewriting the ledger file mid-run in a way
+  that keeps the chain internally consistent (e.g., replacing the whole
+  file with a forged-but-self-consistent chain before the real one is
+  ever read) — that requires the signing key staying secret, which is
+  the privilege-boundary assumption above, not a separate guarantee.
+- **An agent that never touches the decoy, the marker, the sink, or any
+  watched filesystem path, and simply lies about something with no
+  independently-observable trace at all** (e.g., an internal reasoning
+  claim with no corresponding external action). witness only catches a
+  mismatch between what's *claimed* and what's *externally observable* —
+  it was never designed to, and cannot, verify a claim with no
+  observable footprint.
+
+This list exists so "what does witness not do" is a design statement, not
+a silent gap a judge or reviewer has to go find themselves.
+
 ## What's actually implemented (see `NEW.md` for the full checklist)
 
 - **Ledger** (`ledger.py`, `canon.py`) — append-only, hash-chained. Each
@@ -124,15 +171,16 @@ validator (muse 1.4.13, 2026-10-26):
   POST sink, both loopback-only; a process-group watcher (`psutil`); a
   filesystem watcher (`watchdog`, with a polling fallback if the OS watch
   limit is hit).
-- **Detectors** (`detectors/`) — six independent checks: a decoy key being
-  read, a POST reaching the decoy sink, a reported-vs-recorded mismatch (the
-  agent's own claims vs. what the watchers actually saw), a write to a
-  path marked protected, a process detaching from the recorded process
-  group (`pgroup_escape` — fed by both `ProcWatcher`'s poll loop and a
-  synchronous peer-pgid check at the marker/sink listener, since the
-  escaped processes seen in practice are often too short-lived for
-  polling alone to catch), and a drift/behavioral-shape signal that is
-  deliberately a stub returning no finding — it isn't scored or shown as a
+- **Detectors** (`detectors/`) — five independent checks, plus one planned:
+  a decoy key being read, a POST reaching the decoy sink, a
+  reported-vs-recorded mismatch (the agent's own claims vs. what the
+  watchers actually saw), a write to a path marked protected, and a
+  process detaching from the recorded process group (`pgroup_escape` —
+  fed by both `ProcWatcher`'s poll loop and a synchronous peer-pgid check
+  at the marker/sink listener, since the escaped processes seen in
+  practice are often too short-lived for polling alone to catch). The
+  sixth, a drift/behavioral-shape signal, is deliberately a stub
+  returning no finding — it isn't scored or shown as a
   headline number until it's been validated against held-out data.
 - **Actions** (`actions/`) — close the decoy key (serves 410 after), stop
   the process group (SIGTERM, 2s grace, SIGKILL, sweeping any pid seen at
@@ -347,3 +395,23 @@ committed `runs/frozen/**/bundle.jsonl` — not every PR to this repo. This
 repo had no `.github/workflows/` directory before this change; a human
 should sanity-check the trigger condition before it's ever merged to
 `main`.
+
+**`--with-analyst`: a live Meta open-weight model call in the gate,
+stated honestly as advisory.** `witness verify --with-analyst` also runs
+the analyst pass (`witness.analyst.run.analyze`, §"Live analyst proof" —
+a real call to Meta's open-weight **Muse Spark Open** via Baseten,
+falling back to the offline deterministic template on any failure) and
+prints its report (`status`, `confidence`, fixed summary codes — never
+free text) alongside the existing checks. Said plainly, because it would
+otherwise be an easy thing to oversell: **this call never affects
+pass/fail.** The gate's exit code comes entirely from the chain/
+signature/policy/tree checks above; the analyst's output is a narrative
+annotation a human reviewer can read, not an input to the gate decision.
+`BasetenClient`'s resolution order (`_resolve_analyst_client` in
+`cli.py`) is `BASETEN_API_KEY` env var (how a CI runner supplies it, via
+a GitHub Actions secret — composite actions can't read repo secrets
+directly, so `witness-verify/action.yml` accepts it as an input and the
+calling workflow passes `${{ secrets.BASETEN_API_KEY }}` through) →
+local key file → `None` (the offline template), never raising either
+way. Confirmed working end to end on a real GitHub-hosted runner, not
+just locally — see `docs/NUMBERS.md`.

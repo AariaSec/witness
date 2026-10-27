@@ -20,7 +20,17 @@ sandbox.
 
 Nothing in this repo captures, stores, or displays prompt or response
 text. Every record is a digest, an enum, a count, a destination, or a
-timestamp. Any scenario shown in the console is clearly labeled
+timestamp. The precise boundary: witness's own recorder reads an agent's
+structured action log — tool invocations, file-edit events, a claim
+parser's extraction of what the agent says it did — and independently-
+observed telemetry (files, processes, network); it never reads the
+prompt given to the agent, and never reads the model's own freeform
+conversational output. Where this project's own writeup (`docs/NUMBERS.md`,
+the video script) quotes an agent's final conversational message for
+human-readable color, that text was read by the human operator watching
+the terminal, not by witness's recorder — it is not, and never becomes,
+a bundle record, and no code path in this repo stores or processes it.
+Any scenario shown in the console is clearly labeled
 **SIMULATED RECONSTRUCTION** and uses decoy credentials that point at a
 local sink — never real infrastructure, never a real secret.
 

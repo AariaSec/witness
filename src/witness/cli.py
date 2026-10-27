@@ -737,7 +737,8 @@ def verify(
         codes = ", ".join(report.summary_codes) if report.summary_codes else "none"
         typer.echo(
             f"analyst: status={report.analyst_status} confidence={report.confidence} "
-            f"codes=[{codes}]"
+            f"codes=[{codes}] (advisory narrative only — never affects pass/fail; "
+            f"the policy/chain/signature checks above are the whole gate decision)"
         )
 
     tree_fail = False
