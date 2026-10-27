@@ -24,6 +24,25 @@ inputs:
     description: "Python version to set up for `pip install -e .`"
     required: false
     default: "3.11"
+  with-analyst:
+    description: >-
+      Pass through to `witness verify --with-analyst` — also runs the
+      analyst pass and publishes its content-free report (status,
+      confidence, fixed summary codes only) in the step summary. Never
+      affects pass/fail: the analyst attempts a real call to Meta's
+      open-weight Muse Spark Open via Baseten and falls back to the
+      offline deterministic template on any failure (missing key,
+      network, timeout) rather than erroring.
+    required: false
+    default: "false"
+  baseten-api-key:
+    description: >-
+      Baseten API key for the live analyst call, e.g. `${{ secrets.
+      BASETEN_API_KEY }}` from the calling workflow — composite actions
+      can't read repo secrets directly. Leave empty to use the offline
+      template (no key present -> graceful fallback, not a failure).
+    required: false
+    default: ""
 outputs:
   result:
     description: "'pass' or 'fail'"
@@ -46,13 +65,18 @@ runs:
     - name: Run witness verify
       id: verify
       shell: bash
+      env:
+        BASETEN_API_KEY: ${{ inputs.baseten-api-key }}
       run: |
         set +e
+        ARGS=("${{ inputs.bundle-path }}")
         if [ -n "${{ inputs.against-tree }}" ]; then
-          OUTPUT="$(witness verify "${{ inputs.bundle-path }}" --against-tree "${{ inputs.against-tree }}" 2>&1)"
-        else
-          OUTPUT="$(witness verify "${{ inputs.bundle-path }}" 2>&1)"
+          ARGS+=(--against-tree "${{ inputs.against-tree }}")
         fi
+        if [ "${{ inputs.with-analyst }}" = "true" ]; then
+          ARGS+=(--with-analyst)
+        fi
+        OUTPUT="$(witness verify "${ARGS[@]}" 2>&1)"
         EXIT_CODE=$?
         set -e
 

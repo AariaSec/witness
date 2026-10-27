@@ -30,8 +30,12 @@ import sys
 import time
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
+
+if TYPE_CHECKING:
+    from witness.analyst.client import LLMClient
 
 from witness import BUNDLE_SCHEMA_VERSION, __version__
 from witness.actions import POLICY, ActionRunner
@@ -69,6 +73,23 @@ from witness.muse_journal import MuseJournalClaimParser
 from witness.tailer import ClaimParser, Tailer
 
 _DEFAULT_COVERAGE: list[Watcher] = [Watcher.fs, Watcher.marker, Watcher.sink, Watcher.proc]
+
+
+def _resolve_analyst_client() -> LLMClient | None:
+    """`witness verify --with-analyst`'s client resolution: prefer
+    `BASETEN_API_KEY` (how a CI runner supplies it — a GitHub Actions
+    secret, never committed), fall back to the local key file (how the
+    project owner's own machine already has it), and return `None` (the
+    offline template) rather than raise if neither is available — this
+    flag must never be the reason a run fails."""
+    from witness.analyst.client import BasetenClient, LLMClientError
+
+    api_key = os.environ.get("BASETEN_API_KEY")
+    try:
+        return BasetenClient(api_key=api_key) if api_key else BasetenClient()
+    except LLMClientError:
+        return None
+
 
 app = typer.Typer(
     add_completion=False,
@@ -652,6 +673,16 @@ def verify(
         "(digest matches), modified (path known, digest differs), or "
         "unattested (no covering receipt entry at all)",
     ),
+    with_analyst: bool = typer.Option(
+        False,
+        "--with-analyst",
+        help="also run the analyst pass (witness.analyst.run.analyze) and print its "
+        "content-free report (status/confidence/fixed summary codes only — never raw "
+        "evidence text). Attempts a real call to Meta's open-weight Muse Spark Open via "
+        "Baseten (BASETEN_API_KEY env var, falling back to the local key file) and "
+        "silently falls back to the offline deterministic template on any failure — "
+        "this flag can only ever ADD information, never change the exit code.",
+    ),
 ) -> None:
     """Re-verify an existing bundle.jsonl: schema + whitelist + chain +
     receipt signature, a small built-in policy check, and (with
@@ -697,6 +728,17 @@ def verify(
 
     policy_pass = info.stop_findings == 0
     typer.echo(f"policy: {'PASS' if policy_pass else 'FAIL'} (stop findings: {info.stop_findings})")
+
+    if with_analyst:
+        from witness.analyst.run import analyze
+
+        client = _resolve_analyst_client()
+        report = analyze(bundle_path, client=client)
+        codes = ", ".join(report.summary_codes) if report.summary_codes else "none"
+        typer.echo(
+            f"analyst: status={report.analyst_status} confidence={report.confidence} "
+            f"codes=[{codes}]"
+        )
 
     tree_fail = False
     if against_tree is not None:

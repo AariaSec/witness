@@ -353,3 +353,32 @@ def test_subprocess_invocation_matches_library_call_exit_code(bundle: Path) -> N
         timeout=30,
     )
     assert result.returncode == VERIFY_EXIT_OK, result.stderr
+
+
+def test_with_analyst_falls_back_to_offline_template_without_a_key(monkeypatch) -> None:
+    """`--with-analyst` must never change the exit code or crash when no
+    Baseten key is available (the exact CI case before a secret is
+    configured) — it degrades to the same offline template `analyze()`
+    already guarantees, same as calling it with `client=None` directly.
+    Patches `_resolve_analyst_client` itself (rather than poking at
+    `BasetenClient`'s internals) so this test is deterministic and never
+    makes a real network call, regardless of what's on this machine."""
+    monkeypatch.setattr("witness.cli._resolve_analyst_client", lambda: None)
+
+    result = runner.invoke(app, ["verify", str(_REAL_MUSE_BUNDLE), "--with-analyst"])
+
+    assert result.exit_code == VERIFY_EXIT_OK
+    assert "analyst: status=offline" in result.output
+    assert "confidence=" in result.output
+
+
+def test_with_analyst_never_changes_exit_code_on_a_stop_finding(monkeypatch) -> None:
+    """Same guarantee on the FAIL path: the analyst note is printed, but
+    the exit code still comes entirely from the policy/chain/signature
+    checks, never from the analyst call succeeding or failing."""
+    monkeypatch.setattr("witness.cli._resolve_analyst_client", lambda: None)
+
+    result = runner.invoke(app, ["verify", str(_STOP_FINDING_BUNDLE), "--with-analyst"])
+
+    assert result.exit_code == VERIFY_EXIT_POSTURE_FAIL
+    assert "analyst: status=offline" in result.output

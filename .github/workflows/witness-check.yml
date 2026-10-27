@@ -40,3 +40,5 @@ jobs:
         uses: ./.github/actions/witness-verify
         with:
           bundle-path: ${{ steps.find.outputs.bundle }}
+          with-analyst: "true"
+          baseten-api-key: ${{ secrets.BASETEN_API_KEY }}
