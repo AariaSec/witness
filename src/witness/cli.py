@@ -3,6 +3,13 @@
 Subcommands for G1: `record`, `bundle`, `verify`, `keygen`, `demo`.
 `analyze`, `replay` are thin stubs (later gates: G2). `arena run` /
 `arena score` (G-Arena) are implemented — see `witness.arena`.
+`record-muse` records a REAL Muse Code session (not the `sim_agent.py`
+stand-in). It never hardcodes `--provider`, `--disable-approval`, or
+`--disable-sandbox` — the operator supplies `--provider` explicitly
+(`echo` is always safe to test the plumbing with zero tool execution;
+`meta` with `--muse-arg --disable-approval` requires an operator-made
+choice, deliberately not a default this CLI picks for them — see
+`docs/LIMITATIONS.md`).
 """
 
 from __future__ import annotations
@@ -13,6 +20,7 @@ import secrets
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 import typer
@@ -37,7 +45,8 @@ from witness.listeners.marker import MarkerService
 from witness.listeners.procwatch import ProcWatcher
 from witness.listeners.sink import Sink
 from witness.models import ActionResult, Finding, Manifest, ReceiptBody, RunEnd
-from witness.tailer import Tailer
+from witness.muse_journal import MuseJournalClaimParser
+from witness.tailer import ClaimParser, Tailer
 
 app = typer.Typer(
     add_completion=False,
@@ -71,8 +80,25 @@ def _policy_hash() -> str:
     return sha256_hex(canonical_json(as_str))
 
 
-def _run_record(config: RecordConfig, assistant_cmd: list[str], out_runs_dir: Path) -> Path:
-    """Core `record` orchestration. Returns the run directory."""
+def _run_record(
+    config: RecordConfig,
+    assistant_cmd: list[str],
+    out_runs_dir: Path,
+    tail_paths: list[Path] | None = None,
+    tail_parser: ClaimParser | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> Path:
+    """Core `record` orchestration. Returns the run directory.
+
+    `tail_paths`/`tail_parser` default to the `sim_agent.py`-compatible
+    simple log format at `<lab>/.session/{session.log,output.json}` with
+    `DefaultClaimParser` — unchanged from before this parameter existed,
+    so every existing caller (`demo`, `arena`) behaves identically.
+    `record-muse` overrides both to tail a real Muse Code `session.jsonl`
+    with `MuseJournalClaimParser` instead. `extra_env` is merged into the
+    assistant's environment on top of `WITNESS_MARKER_URL`/`WITNESS_SINK_URL`
+    (e.g. `META_API_KEY`) — never logged, never persisted anywhere.
+    """
     run_id = _run_id()
     run_dir = out_runs_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -109,6 +135,8 @@ def _run_record(config: RecordConfig, assistant_cmd: list[str], out_runs_dir: Pa
     env = dict(os.environ)
     env["WITNESS_MARKER_URL"] = marker_url
     env["WITNESS_SINK_URL"] = sink_url
+    if extra_env:
+        env.update(extra_env)
 
     proc = subprocess.Popen(
         assistant_cmd,
@@ -124,7 +152,8 @@ def _run_record(config: RecordConfig, assistant_cmd: list[str], out_runs_dir: Pa
     procwatcher = ProcWatcher(pgid, interval_s=config.poll_interval_s)
     procwatcher.start(bus.emit_fn)
 
-    tailer = Tailer([session_dir / "session.log", session_dir / "output.json"])
+    resolved_tail_paths = tail_paths or [session_dir / "session.log", session_dir / "output.json"]
+    tailer = Tailer(resolved_tail_paths, parser=tail_parser)
     tailer.start(bus.emit_fn)
 
     degraded = ["fs_poll"] if fswatcher.degraded else []
@@ -282,6 +311,96 @@ def record(
     )
     run_dir = _run_record(config, list(assistant_cmd), runs_dir)
     typer.echo(f"recorded: {run_dir}")
+
+
+def _muse_session_log_path(session_id: str) -> Path:
+    """Deterministic real `session.jsonl` path for a given Muse Code
+    session id, assuming `muse` shards by today's LOCAL date — confirmed
+    empirically (2026-10-26): `muse exec --session-id <uuid>` accepts a
+    standard uuid4 and writes to exactly this path."""
+    xdg_data = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    today = time.strftime("%Y/%m/%d")
+    return Path(xdg_data) / "muse" / "sessions" / today / session_id / "session.jsonl"
+
+
+_DEFAULT_MUSE_KEY_PATH = Path.home() / ".config" / "aariasec" / "meta_api_key"
+
+
+@app.command(name="record-muse")
+def record_muse(
+    task: str = typer.Argument(..., help="the prompt/task to give the real Muse Code session"),
+    lab: Path = typer.Option(..., help="writable lab directory Muse Code runs in"),
+    provider: str = typer.Option(
+        ...,
+        help="Muse Code --provider, passed through verbatim. 'echo' is always safe "
+        "(never invokes a tool, zero API key). 'meta' calls the real hosted model and "
+        "needs --muse-arg for anything beyond the default sandboxed/approval-gated mode.",
+    ),
+    muse_arg: list[str] = typer.Option(
+        [],
+        help="additional flags passed through to `muse exec` verbatim, e.g. "
+        "--muse-arg --trust-workspace --muse-arg --disable-approval. This command "
+        "never adds any of its own — the operator states every one explicitly.",
+    ),
+    max_seconds: float | None = typer.Option(60.0, help="stop after N seconds"),
+    marker_port: int = typer.Option(47101),
+    sink_port: int = typer.Option(47102),
+    runs_dir: Path = typer.Option(Path("runs"), help="where to write runs/<run_id>/"),
+    muse_key_path: Path = typer.Option(
+        _DEFAULT_MUSE_KEY_PATH, help="file containing META_API_KEY (read, never echoed)"
+    ),
+) -> None:
+    """Record ONE REAL Muse Code session end-to-end (not `sim_agent.py`).
+
+    Generates the session id itself (so the real `session.jsonl` path is
+    known before Muse even starts — no directory-scanning race), spawns
+    `muse exec --session-id <id> --provider <provider> [muse_arg...] --json
+    <task>` as the assistant, and tails the REAL session log with
+    `MuseJournalClaimParser` instead of the `sim_agent.py`-compatible
+    simple format. OS-level watchers (files/processes/decoy marker+sink)
+    are identical to every other `witness record` run — they don't care
+    which coding agent is running.
+    """
+    muse_bin = os.environ.get("WITNESS_MUSE_BIN", "muse")
+    session_id = str(uuid.uuid4())
+    log_path = _muse_session_log_path(session_id)
+
+    assistant_cmd = [
+        muse_bin,
+        "exec",
+        "--session-id",
+        session_id,
+        "--provider",
+        provider,
+        *muse_arg,
+        "--json",
+        task,
+    ]
+
+    extra_env: dict[str, str] = {}
+    if provider == "meta":
+        try:
+            extra_env["META_API_KEY"] = muse_key_path.read_text().strip()
+        except OSError as exc:
+            typer.echo(f"error: could not read Meta API key from {muse_key_path}: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+
+    config = RecordConfig(
+        lab=lab,
+        marker_port=marker_port,
+        sink_port=sink_port,
+        max_seconds=max_seconds,
+    )
+    run_dir = _run_record(
+        config,
+        assistant_cmd,
+        runs_dir,
+        tail_paths=[log_path],
+        tail_parser=MuseJournalClaimParser(),
+        extra_env=extra_env,
+    )
+    typer.echo(f"recorded: {run_dir}")
+    typer.echo(f"real muse session log: {log_path}", err=True)
 
 
 @app.command()

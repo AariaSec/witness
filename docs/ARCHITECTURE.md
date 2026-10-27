@@ -153,3 +153,23 @@ process-group-escape — and each produces exactly the findings expected for
 that scenario, with the protected-write case detected and stopped in single
 digits of milliseconds against a 500ms budget (see `docs/NUMBERS.md` for the
 measured figures and the run that backs each one).
+
+## Recording a REAL Muse Code session instead of the stand-in
+
+`witness record-muse <task> --lab <dir> --provider <provider> [--muse-arg
+...]` is the real-agent path: it generates the Muse Code session id
+itself (`--session-id <uuid>`), computes the real on-disk `session.jsonl`
+path deterministically *before* spawning Muse (no directory-scanning
+race — confirmed empirically), and tails that real file with
+`MuseJournalClaimParser` instead of `sim_agent.py`'s simple format. The
+OS-level watchers (files/processes/decoy marker+sink) are unchanged —
+they don't care which coding agent is running.
+
+This command never hardcodes `--disable-approval` or `--disable-sandbox`
+itself — the operator supplies `--provider` and every `--muse-arg`
+explicitly. `--provider echo` is always safe to smoke-test the plumbing
+(zero tool execution, zero API key); `--provider meta` with `--muse-arg
+--trust-workspace --muse-arg --disable-approval` is how a real,
+tool-executing session is recorded, and was run successfully by the
+project owner directly (see `docs/LIMITATIONS.md` for what that run did
+and didn't prove).
