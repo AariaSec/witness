@@ -173,3 +173,62 @@ explicitly. `--provider echo` is always safe to smoke-test the plumbing
 tool-executing session is recorded, and was run successfully by the
 project owner directly (see `docs/LIMITATIONS.md` for what that run did
 and didn't prove).
+
+## Claude Code integration: a second, architecturally distinct agent (added 2026-10-27)
+
+`record-muse` proved the recorder works against one real coding-agent
+format. A single integration risks looking like it was built TO that
+format — so this adds a SECOND, independently-shaped one (Claude Code,
+`claude` v2.1.310) to prove the actual architectural claim: **the
+recorder core needed zero changes.** `src/witness/claude_journal.py` is
+the only new source module; `cli.py` gained one additive command
+(`record-claude`). Every pre-existing recorder-core file —
+`ledger.py`, `canon.py`, `bus.py`, `listeners/*`, `detectors/*`,
+`actions/*`, `bundle.py`, `models.py` — has an empty diff for this change
+(verified with `git diff --stat` at commit time, not asserted). `tailer.py`
+also needed no change: `ClaimParser` was already a pluggable protocol from
+the Muse integration, and `Tailer._poll_file` already handled a parser
+returning a list.
+
+**The format itself is a genuinely different shape from Muse Code's,**
+which is what makes this a real second data point and not just a
+find-and-replace of the first:
+
+- Muse's `session.jsonl` needs an envelope-unwrap step (`retained_frame` →
+  `children[].record_json`, JSON-parsed a second time); Claude Code's
+  session `.jsonl` is flat NDJSON throughout — one JSON object per line,
+  always.
+- Muse's tool-call evidence lives in a SINGLE record (`tool.result`'s
+  `correlation_facts.tool_name` + `edit_facts.path`, or
+  `tool_batch.effect.started`'s `record.tool_name` + `parallel_profile`).
+  Claude Code splits the same information across TWO records — an
+  `assistant` record's `tool_use` block (the request: tool name + intended
+  args) and a later `user` record's `tool_result`/`toolUseResult` (the
+  outcome). `claim_from_record` deliberately reads only the result side
+  (see the module docstring for why — avoiding both a double-claim and a
+  need for cross-record correlation state).
+- Claude Code additionally has a THIRD outcome Muse's captured shapes
+  never exercised: a tool call the operator's own permission gate
+  refused outright (`toolDenialKind` + `is_error: true`, `toolUseResult`
+  degrading from a structured dict to a plain error string). See
+  `docs/LIMITATIONS.md` for the deliberate design decision on this path.
+
+`witness record-claude --session-log <path> --lab <dir>` is the CLI
+surface, and it is shaped differently from `record-muse` for a reason:
+`record-muse` spawns the real agent itself, because Muse Code's `echo`
+provider makes a zero-risk, zero-tool-execution smoke test possible.
+Claude Code has no equivalent safe headless mode — running it
+unsupervised would mean this codebase itself passing some form of
+permission bypass, which is exactly the thing this project refuses to do
+on an agent's behalf (same discipline as `record_muse` never hardcoding
+`--disable-approval`). So `record-claude` never invokes `claude` at all:
+the operator runs it themselves, by hand, in the same `--lab` directory,
+and this command only tails the resulting session log. To keep
+`_run_record`'s full orchestration (manifest, ledger, fs/marker/sink
+watchers, signed receipt) working unmodified, it spawns a harmless
+placeholder process (`sleep <N>`) to stand in for a process `ProcWatcher`
+can watch. The one real cost: `proc_event` ground truth reflects this
+placeholder, not the operator's actual `claude` process tree, so
+process-level detectors (e.g. `pgroup_escape`) are blind in this mode.
+Filesystem and decoy marker/sink ground truth are unaffected (they watch
+`--lab` and local ports, not a process tree). See `docs/LIMITATIONS.md`.

@@ -10,6 +10,14 @@ stand-in). It never hardcodes `--provider`, `--disable-approval`, or
 `meta` with `--muse-arg --disable-approval` requires an operator-made
 choice, deliberately not a default this CLI picks for them — see
 `docs/LIMITATIONS.md`).
+
+`record-claude` records a REAL Claude Code session — architecturally
+distinct from `record-muse`: it never spawns `claude` itself (no headless
+invocation, no bypass flag of any kind). The operator runs `claude`
+themselves, by hand, in the same `--lab` directory; this command only
+tails the resulting session `.jsonl` (`--session-log`). See `claude_journal.py`
+and `record_claude`'s own docstring for why, and for the one real tradeoff
+this costs (process-tree visibility).
 """
 
 from __future__ import annotations
@@ -36,6 +44,7 @@ from witness.bundle import (
 )
 from witness.bus import EventBus
 from witness.canon import canonical_json, sha256_hex
+from witness.claude_journal import ClaudeCodeClaimParser
 from witness.config import RecordConfig
 from witness.detectors import DetectorState
 from witness.detectors import evaluate as detectors_evaluate
@@ -416,6 +425,80 @@ def record_muse(
     )
     typer.echo(f"recorded: {run_dir}")
     typer.echo(f"real muse session log: {log_path}", err=True)
+
+
+@app.command(name="record-claude")
+def record_claude(
+    session_log: Path = typer.Option(
+        ...,
+        "--session-log",
+        help="path to a real Claude Code session .jsonl file "
+        "(~/.claude/projects/<cwd-with-slashes-as-dashes>/<session-uuid>.jsonl). "
+        "The operator starts `claude` themselves, by hand, in another terminal "
+        "pointed at --lab — this command never invokes `claude`.",
+    ),
+    lab: Path = typer.Option(
+        ..., help="the SAME directory the operator pointed their `claude` session's cwd at"
+    ),
+    max_seconds: float | None = typer.Option(
+        120.0,
+        help="how long this command keeps tailing before stopping on its own; "
+        "Ctrl-C it sooner once the operator's real `claude` session is done",
+    ),
+    marker_port: int = typer.Option(47101),
+    sink_port: int = typer.Option(47102),
+    runs_dir: Path = typer.Option(Path("runs"), help="where to write runs/<run_id>/"),
+) -> None:
+    """Record ONE REAL Claude Code session end-to-end by TAILING a session
+    log the operator produces by running `claude` themselves.
+
+    Architecturally distinct from `record-muse` on purpose: `record-muse`
+    spawns the real agent itself (`subprocess.Popen`), which is how its
+    `ProcWatcher` gets a real, meaningful process group to watch. Claude
+    Code sessions are interactive-first — running one headlessly without
+    a human in the loop would require this codebase to pass a permission-
+    bypass flag itself (there is no "echo provider" equivalent here that
+    exercises real tool-call plumbing with zero risk), which is exactly
+    what this project refuses to do on the assistant's behalf (see
+    `record_muse`'s own docstring for the same discipline applied to Muse
+    Code). So this command does the opposite: it spawns nothing but a
+    no-op placeholder process (so `_run_record`'s full orchestration —
+    manifest, ledger, fs/marker/sink watchers, signed receipt — still
+    runs unmodified) and tails the REAL `--session-log` the operator's own
+    `claude` process is writing, via `ClaudeCodeClaimParser`.
+
+    **The one real tradeoff this costs, stated plainly:** `ProcWatcher`
+    ends up watching this command's own placeholder process group, NOT
+    the operator's separately-launched `claude` process tree — so
+    `proc_event` records (and any detector logic keyed off them, e.g.
+    `pgroup_escape`) do not reflect ground truth for the real agent in
+    this mode. Filesystem events (`FsEvent`, via `FsWatcher` on `--lab`)
+    and the decoy marker/sink are unaffected — they watch the lab
+    directory and local ports, not a process tree, so they catch the real
+    agent's file writes and any decoy-credential exfiltration attempt
+    exactly as they would for any other recorded session. This is a
+    deliberate, documented scope reduction, not a silent gap — see
+    `docs/LIMITATIONS.md`.
+    """
+    placeholder_cmd = ["sleep", str(max_seconds if max_seconds and max_seconds > 0 else 120.0)]
+    config = RecordConfig(
+        lab=lab, marker_port=marker_port, sink_port=sink_port, max_seconds=max_seconds
+    )
+    run_dir = _run_record(
+        config,
+        placeholder_cmd,
+        runs_dir,
+        tail_paths=[session_log],
+        tail_parser=ClaudeCodeClaimParser(),
+    )
+    typer.echo(f"recorded: {run_dir}")
+    typer.echo(f"tailed real Claude Code session log: {session_log}", err=True)
+    typer.echo(
+        "note: proc_event ground truth reflects this command's own placeholder "
+        "process, not the operator's separately-launched `claude` process tree "
+        "— see docs/LIMITATIONS.md",
+        err=True,
+    )
 
 
 @app.command()

@@ -111,6 +111,77 @@ that combination directly, by hand, exactly once this was needed):
   recompute or verify this field — it would rather be silent than claim a
   verification that isn't real.
 
+## Claude Code integration (added 2026-10-27)
+
+A second, architecturally distinct coding-agent integration — see
+`docs/ARCHITECTURE.md` for why this one matters more as a proof point
+than as a feature (zero recorder-core diff, a genuinely different wire
+format, a new outcome shape Muse's captures never exercised).
+
+What's real: two sanitized, committed fixtures
+(`tests/fixtures/claude_journal/success_session.txt`,
+`denied_session.txt`) from a genuine, isolated, throwaway scratch session
+run with a real, locally installed `claude` (confirmed v2.1.310,
+2026-10-26/27) — the same task (write `hello.txt`) run twice, once with
+the `Write` tool granted and once denied. `src/witness/claude_journal.py`
+correctly parses both: flat NDJSON (no envelope step needed, unlike Muse),
+a confirmed success shape (`user` record's `toolUseResult.type ==
+"create"` + `.filePath`), and a confirmed denial shape (`toolDenialKind` +
+`is_error: true`, `toolUseResult` degrading to a plain string).
+
+- **Only `Write` has ever been observed, end to end.** `Read`, `Edit`,
+  `Bash`, `Grep`, `Glob` all appear as tool NAMES in this session's own
+  tool listing, but none has a captured `tool_use`/`tool_result` pair.
+  `_TOOL_RESULT_TYPE_TO_CLAIM_TOOL` holds exactly one entry (`"create"` →
+  `ClaimTool.write`). A second, narrower gap: even for `Write`, only the
+  `"create"` (new-file) `toolUseResult.type` has been observed —
+  `"update"` (overwriting an existing file) is a plausible but
+  uncaptured shape and is deliberately not mapped. Extend only from
+  another real, observed capture.
+- **The denial path is a deliberate design decision, not an oversight —
+  a denied tool call never produces an `AssistantClaim`.** Three
+  alternatives were considered and rejected: (1) parsing the human-
+  readable denial sentence to recover which tool/path was denied — prose
+  parsing, refused on the same content-discipline grounds `muse_journal.py`
+  refuses to recompute `content_sha256` from a guess; (2) correlating
+  back to the paired `assistant` record's `tool_use` block by
+  `tool_use_id` to recover the tool/path structurally — technically
+  possible without touching prose, but adds state to what is otherwise a
+  stateless, per-record parser for no benefit this project currently
+  needs; (3) misusing an existing `TailMeta` event literal (e.g.
+  `"parse_error"`) to signal "denied" — rejected as factually wrong, the
+  line parses fine. The chosen answer is silence: `AssistantClaim` means
+  "the assistant did (or asserts it did) X"; a refusal is specifically the
+  absence of that, and the recorder's independent, OS-level `FsWatcher`
+  ground truth already establishes whether a file was (or wasn't)
+  written — a denial produces no ground-truth fs event either, so there
+  is nothing for a missing claim to create a false mismatch against.
+- **A real, committed-fixture content leak was found and fixed during
+  this same pass.** The two fixtures were sanitized by replacing every
+  `content`/`rendered`/`shape`/`params`/`originalFile`/`structuredPatch`/
+  `message`/`input`/`text`/`prompt`-keyed string value — but the
+  sanitization matched the exact key name `"prompt"` and missed the
+  camelCase `lastPrompt` field (`type: "last-prompt"` records), which
+  carried this capture's literal real task text
+  (`"Create a file named hello.txt containing exactly the word hello"`)
+  unredacted, 3 times in each fixture. Found by this module's own test
+  suite (`test_success_fixture_contains_no_unredacted_prose`,
+  `test_denied_fixture_contains_no_unredacted_prose` initially failing),
+  fixed by replacing the literal leaked string with the same
+  `PLACEHOLDER_CONTENT` token used elsewhere in both files, and the
+  regression tests now assert the specific phrase is absent, not just a
+  generic substring. A reminder that "already sanitized" fixtures still
+  need independent verification, not trust.
+- **`record-claude`'s process-tree blind spot.** Because this command
+  never spawns `claude` itself (see `docs/ARCHITECTURE.md` for why), its
+  `ProcWatcher` watches a harmless placeholder process, not the
+  operator's real `claude` process tree. `proc_event` records (and
+  `pgroup_escape` detection, which depends on them) do not reflect ground
+  truth for the real agent in this mode — only the fs watcher and decoy
+  marker/sink do. This is a deliberate, documented scope reduction
+  forced by the "never invoke Claude Code with a bypass flag" constraint,
+  not a silent gap.
+
 ## What would make this stronger, with more time
 
 - A real arena run across many generated scenario variants, scored against
