@@ -18,3 +18,10 @@ product.
   that company's source tree was ever copied into this one.
 
 See `NEW.md` for the itemized list of what was built during the event.
+
+## Consultations
+
+- **Liji** (co-inventor at AariaSec) — scoped behavioral-analysis
+  consultation during the build, 2026-10-26. No code contribution, not
+  listed as a team member/contributor on this submission; advisory
+  discussion only, same as any informal technical sounding-board.

@@ -12,6 +12,10 @@ sandbox.
 > claim list and `PROVENANCE.md` for commit-level proof. No code from any
 > pre-existing product is included here.
 
+**Live console, no login, no API key required:
+[aariasec.github.io/witness](https://aariasec.github.io/witness/)**
+— loads with a real recorded bundle pre-loaded.
+
 ## What this is not
 
 Nothing in this repo captures, stores, or displays prompt or response
