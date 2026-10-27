@@ -34,6 +34,14 @@ Any scenario shown in the console is clearly labeled
 **SIMULATED RECONSTRUCTION** and uses decoy credentials that point at a
 local sink — never real infrastructure, never a real secret.
 
+This also isn't a pre-deployment red-team or eval framework — it doesn't
+attack an agent with adversarial prompts before it ships. It's a runtime
+recorder: it watches one real session as it happens, from outside the
+agent's own process, and checks the agent's self-report against what
+independently-observed telemetry says actually happened. Those are
+complementary categories (eval finds what an agent *can* be made to do;
+this catches what an agent *actually did*), not competing ones.
+
 ## Why
 
 Coding agents run with real file-system and network access. Today, the
