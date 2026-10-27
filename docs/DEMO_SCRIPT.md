@@ -46,6 +46,16 @@ justification), relabeling the private `witness-private` seed repo (a
 deliberate IP-protection decision, not a presentation choice), and adding
 a Startup-track traction slide (pricing/design-partners — not buildable
 from a doc edit).
+(6) A sixth pass (2026-10-27, same day): a `muse exec` max-effort
+brainstorm, asked for the single highest-leverage *implementation* (not
+wording) given the remaining time, found the sharpest gap pass (5) left
+unaddressed: the only red merge-gate PR was a simulated run, not a real
+agent. Built `credential_persist` (stop-severity detector scoring what
+both flagship runs already did — persist the decoy credential to disk —
+instead of chasing real network exfiltration, which the same pass
+explicitly recommended against). A real Muse Code session hit it on the
+first attempt; PR #4 is now the merge-gate beat's lead red example. Full
+story: `docs/NUMBERS.md`'s "third real-agent proof" section.
 
 ---
 
@@ -206,36 +216,42 @@ agent-agnostic and only input parsing is agent-specific.*
 ## 2:00–2:25 — The merge gate
 
 **Visual:** a real, live GitHub pull request —
-[PR #2](https://github.com/AariaSec/witness/pull/2) — red X, the
-Actions log showing the content-free step summary (`policy: FAIL (stop
-findings: 1)`). Cut to [PR #1](https://github.com/AariaSec/witness/pull/1),
+[PR #4](https://github.com/AariaSec/witness/pull/4) — red X, the Actions
+log showing the content-free step summary (`policy: FAIL (stop findings:
+2)`, `"simulated":false`). Cut to [PR #1](https://github.com/AariaSec/witness/pull/1),
 green check, same gate, a faithful session.
 
 **Voiceover:**
 > This isn't just a viewer. The signed receipt is bound to the actual
 > git tree, and a real GitHub Action runs `witness verify` on every pull
-> request. A tampered or missing receipt — or a stop-severity finding —
-> fails the check, visibly, before a merge ever happens. This red PR
-> isn't the same scenario you saw earlier — the decoy value actually
-> left the machine over the network here, not just saved to a file, so
-> it's a stop-severity finding, not a warn. The pass/fail decision is
-> fully deterministic — chain, signature, policy. It can optionally also
-> show a live narrative from Meta's open-weight Muse Spark Open model
+> request. This red PR is a real coding agent — the same kind of session
+> you just saw — doing the same thing both flagship runs did: saving the
+> decoy credential to a file. The difference is scoring: a persisted
+> secret is stop-severity, so it actually fails the check, visibly,
+> before a merge ever happens. The pass/fail decision is fully
+> deterministic — chain, signature, policy. It can optionally also show
+> a live narrative from Meta's open-weight Muse Spark Open model
 > alongside the verdict — advisory only, never the thing that decides
 > pass or fail.
 
 **On-screen:** the two PR URLs, side by side, green and red.
 
-*Added after a `muse exec` adversarial-judge pass (2026-10-27) asked the
-exact question a sharp judge would: if the flagship catch earlier in this
-video is only `policy: PASS` (warn-level, nothing blocks a merge), what
-does PR #2 actually contain, and would the flagship bundle itself go
-green? Verified directly against `console/public/bundles/demo-red.jsonl`:
-it's a stop-severity `outbound_post` (network exfiltration attempt), a
-categorically more severe, different scenario from the flagship's
-warn-level `marker_read`/`mismatch` (local file save only, no outbound
-attempt) — not the same bundle rescored. Saying this on screen pre-empts
-the question instead of leaving a judge to ask it in Q&A.*
+*Revised again (2026-10-27) after a second `muse exec` pass (max
+reasoning effort) found an even sharper gap than the PASS-vs-FAIL
+question this beat previously just answered: the only red PR
+(`PR #2`, network exfiltration) was `"simulated":true` — a scripted
+stand-in, not a real agent. Rather than chase a real agent into
+genuinely attempting network exfiltration (the same pass explicitly
+recommended against this — agents are trained to refuse that exact
+instruction shape), a new detector (`credential_persist`, stop-severity)
+now scores what real agents already proved they do: persist the decoy
+credential to a tracked file. A real Muse Code session re-running the
+exact flagship task hit it on the first attempt — `policy: FAIL (stop
+findings: 2)`, `stop_pgroup` actually fired in 298ms, `"simulated":false`
+— frozen as `runs/frozen/credential-persist-real-proof-20261027-135303-9dba/`,
+opened as PR #4. This is now the lead red example; PR #2 (simulated
+network-exfil) stays live as a second scenario, not the only one. Full
+story: `docs/NUMBERS.md`'s "third real-agent proof" section.*
 
 ---
 
@@ -308,8 +324,10 @@ it's already solved for everything.*
       and `?bundle=bundles/claude-real-agent-proof.jsonl`.
 - [ ] Screen-record the tamper-test flip in real time (don't fake the
       transition — it has to actually compute).
-- [ ] Screen-record PR #1 and PR #2's Actions tab live, scrolled to the
-      step summary.
+- [ ] Screen-record PR #1 and PR #4's Actions tab live, scrolled to the
+      step summary (PR #4 is the lead red example now — real agent, not
+      simulated; PR #2 stays available as a second, simulated scenario
+      if there's room).
 - [ ] Record the `git diff --stat` command showing the empty recorder-core
       diff, in a real terminal, not a screenshot.
 - [ ] Voiceover recorded separately, synced in edit — not live narration

@@ -103,6 +103,7 @@ runs:
           *demo-red*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/demo-red.jsonl" ;;
           *muse-real-agent-proof*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/muse-real-agent-proof.jsonl" ;;
           *claude-real-agent-proof*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/claude-real-agent-proof.jsonl" ;;
+          *credential-persist-real-proof*) CONSOLE_LINK="${CONSOLE_URL}?bundle=bundles/credential-persist-real-proof.jsonl" ;;
           *) CONSOLE_LINK="" ;;
         esac
 

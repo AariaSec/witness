@@ -149,4 +149,5 @@ allowed_keys:
   - mismatch
   - protected_write
   - pgroup_escape
+  - credential_persist
   - drift
