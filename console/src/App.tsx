@@ -5,7 +5,7 @@
  * same-origin ?bundle= path, or the bundled demo) and replays it. Nothing is
  * uploaded; the only network request is fetching a same-origin bundle file.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { BundleLoadError, ISSUE_TEXT, fetchBundle, readBundleFile, type LoadedBundle } from './lib/loadBundle';
 import { auditReceipt } from './lib/verifyReceipt';
 import { seqAtTime } from './lib/derive';
@@ -20,6 +20,9 @@ import { ReceiptPanel } from './components/ReceiptPanel';
 import { ReportPanel } from './components/ReportPanel';
 import { DriftPanel } from './components/DriftPanel';
 import { Scrubber } from './components/Scrubber';
+
+// three.js is ~600 KB — split into its own same-origin chunk (CSP script-src 'self' still holds)
+const BlastRadiusScene = lazy(() => import('./components/BlastRadiusScene'));
 
 const DEMO_URL = 'bundles/demo.jsonl';
 
@@ -509,6 +512,10 @@ export default function App() {
           </div>
 
           <DivergenceFlow bundle={bundle} cursor={cursor} />
+
+          <Suspense fallback={<section className="card h-[640px] animate-pulse" aria-label="Blast radius loading" />}>
+            <BlastRadiusScene bundle={bundle} cursor={cursor} />
+          </Suspense>
 
           <ClaimDiff bundle={bundle} cursor={cursor} />
 
