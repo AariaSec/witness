@@ -151,13 +151,16 @@ of three — see the "Why" section above):
 - **A real coding agent, not a stand-in**: a genuine Muse Code session
   independently caught fetching and saving a decoy credential — see
   `docs/NUMBERS.md`'s flagship proof run.
-- **Live Meta open-weight model proof**: a real call to Muse Spark Open
+- **Two independent, live Meta model proofs**: Muse Spark Open
   (`meta-models/muse-spark-open-1026` via Baseten) correctly analyzed a
-  real bundle — `analyst_status="ok"`, `confidence=0.91`. A second,
-  independent hosting provider for the same model (Fireworks,
-  `witness verify --with-analyst --analyst-provider fireworks`) is built
-  and unit-tested, proving the analyst role isn't tied to one third-party
-  host — see `docs/LIMITATIONS.md` for its live-verification status.
+  real bundle — `analyst_status="ok"`, `confidence=0.91` — and, as a
+  second, first-party proof, a direct call to **Meta's own hosted Model
+  API** (`witness verify --with-analyst --analyst-provider meta`,
+  `muse-spark-1.3`, no third-party host) worked on the first attempt
+  against a different real bundle — `analyst_status="ok"`,
+  `confidence=0.6`. Together they cover both halves of "meaningfully use
+  Meta Model API and/or Meta open-weight models" with independent real
+  artifacts — see `docs/NUMBERS.md`.
 
 ## Founder disclosure
 

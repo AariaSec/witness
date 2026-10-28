@@ -50,6 +50,13 @@ inputs:
       open-weight model. Only used when analyst-provider is 'fireworks'.
     required: false
     default: ""
+  meta-api-key:
+    description: >-
+      Meta Model API key (the same one used for real Muse Code sessions)
+      for a direct, first-party analyst call — no third-party host.
+      Only used when analyst-provider is 'meta'.
+    required: false
+    default: ""
   analyst-provider:
     description: >-
       Which independent hosting provider --with-analyst calls: 'baseten'
@@ -81,6 +88,7 @@ runs:
       env:
         BASETEN_API_KEY: ${{ inputs.baseten-api-key }}
         FIREWORKS_API_KEY: ${{ inputs.fireworks-api-key }}
+        META_API_KEY: ${{ inputs.meta-api-key }}
       run: |
         set +e
         ARGS=("${{ inputs.bundle-path }}")

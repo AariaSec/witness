@@ -76,22 +76,32 @@ _DEFAULT_COVERAGE: list[Watcher] = [Watcher.fs, Watcher.marker, Watcher.sink, Wa
 
 
 def _resolve_analyst_client(provider: str = "baseten") -> LLMClient | None:
-    """`witness verify --with-analyst`'s client resolution for either of
-    two independent hosting providers for the same open-weight model —
-    `provider="baseten"` (default, unchanged behavior) or
-    `provider="fireworks"`. Prefers the provider's own env var (how a CI
-    runner supplies it — a GitHub Actions secret, never committed), falls
-    back to the local key file (how the project owner's own machine
-    already has it), and returns `None` (the offline template) rather
-    than raise if neither is available or the provider name is unknown —
-    this flag must never be the reason a run fails."""
-    from witness.analyst.client import BasetenClient, FireworksClient, LLMClientError
+    """`witness verify --with-analyst`'s client resolution across three
+    independent providers — `provider="baseten"` (default, unchanged
+    behavior), `"fireworks"` (second third-party host of the same
+    open-weight model; see docs/LIMITATIONS.md for its live status), or
+    `"meta"` (Meta's own hosted Model API, first-party, reusing the same
+    key proven working for Muse Code). Prefers the provider's own env var
+    (how a CI runner supplies it — a GitHub Actions secret, never
+    committed), falls back to the local key file (how the project owner's
+    own machine already has it), and returns `None` (the offline
+    template) rather than raise if neither is available or the provider
+    name is unknown — this flag must never be the reason a run fails."""
+    from witness.analyst.client import BasetenClient, FireworksClient, LLMClientError, MetaModelClient
 
-    env_var = {"baseten": "BASETEN_API_KEY", "fireworks": "FIREWORKS_API_KEY"}.get(provider)
+    env_var = {
+        "baseten": "BASETEN_API_KEY",
+        "fireworks": "FIREWORKS_API_KEY",
+        "meta": "META_API_KEY",
+    }.get(provider)
     if env_var is None:
         return None
     api_key = os.environ.get(env_var)
-    client_cls = BasetenClient if provider == "baseten" else FireworksClient
+    client_cls = {
+        "baseten": BasetenClient,
+        "fireworks": FireworksClient,
+        "meta": MetaModelClient,
+    }[provider]
     try:
         return client_cls(api_key=api_key) if api_key else client_cls()
     except LLMClientError:
@@ -696,10 +706,11 @@ def verify(
     analyst_provider: str = typer.Option(
         "baseten",
         "--analyst-provider",
-        help="which independent hosting provider to call for --with-analyst: "
-        "'baseten' (default, confirmed live) or 'fireworks' (second independent "
-        "provider for the same open-weight model — proves the analyst role isn't "
-        "dependent on a single third-party host).",
+        help="which provider to call for --with-analyst: 'baseten' (default, "
+        "confirmed live, open-weight model via a third-party host), 'meta' "
+        "(Meta's own hosted Model API, first-party, no third-party host), or "
+        "'fireworks' (second third-party host of the same open-weight model; "
+        "see docs/LIMITATIONS.md for its live status).",
     ),
 ) -> None:
     """Re-verify an existing bundle.jsonl: schema + whitelist + chain +

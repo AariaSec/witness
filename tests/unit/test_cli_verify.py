@@ -434,3 +434,24 @@ def test_baseten_client_missing_key_file_raises(tmp_path) -> None:
 
     with pytest.raises(LLMClientError, match="no Baseten key"):
         BasetenClient(key_path=tmp_path / "no-such-key-file")
+
+
+def test_meta_model_client_missing_key_file_raises(tmp_path) -> None:
+    from witness.analyst.client import LLMClientError, MetaModelClient
+
+    with pytest.raises(LLMClientError, match="no Meta Model API key"):
+        MetaModelClient(key_path=tmp_path / "no-such-key-file")
+
+
+def test_analyst_provider_meta_is_passed_through_to_resolver(monkeypatch) -> None:
+    seen: list[str] = []
+    monkeypatch.setattr(
+        "witness.cli._resolve_analyst_client", lambda provider: (seen.append(provider), None)[1]
+    )
+
+    result = runner.invoke(
+        app, ["verify", str(_REAL_MUSE_BUNDLE), "--with-analyst", "--analyst-provider", "meta"]
+    )
+
+    assert result.exit_code == VERIFY_EXIT_OK
+    assert seen == ["meta"]

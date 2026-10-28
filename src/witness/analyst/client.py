@@ -1,18 +1,24 @@
 """`LLMClient` protocol — the shape a real Muse Spark / partner API adapter
-implements — plus `BasetenClient` and `FireworksClient`, two real (opt-in)
-adapters for Meta's open-weight Muse Spark Open model via two independent
-hosting providers' OpenAI-compatible endpoints.
+implements — plus three real (opt-in) adapters: `BasetenClient` and
+`FireworksClient` (Meta's open-weight Muse Spark Open via two independent
+third-party hosts), and `MetaModelClient` (Meta's own hosted Model API,
+first-party, no third-party host in between).
 
 The offline deterministic template in `analyst/run.py` remains the default,
 always-available path (see that module's docstring for why: the judge-
 facing product must never depend on a live call that could fail). These
-clients exist so the project can ALSO point at a real Meta open-weight
-model when one is available, satisfying "meaningfully use Meta Model API
-and/or Meta open-weight models" without making it a requirement to run.
-Two independent providers (not just two names for the same thing) means
-the analyst path isn't dependent on a single third-party host — demoed
-2026-10-27 after Fireworks hackathon credits were granted alongside the
-already-live Baseten path.
+clients exist so the project can ALSO point at a real Meta model when one
+is available, satisfying "meaningfully use Meta Model API and/or Meta
+open-weight models" without making it a requirement to run.
+
+`MetaModelClient` (added 2026-10-27) covers the "Model API" half of that
+phrase directly and first-party, reusing the same `META_API_KEY` already
+proven working for Muse Code sessions elsewhere in this project -- built
+after Fireworks' signup rejected every card tried, as a strictly stronger
+alternative (first-party beats a second third-party host of the same
+open-weight model) rather than a workaround. `FireworksClient` stays in
+the codebase, built and unit-tested, in case that path becomes usable
+later -- see docs/LIMITATIONS.md for its status.
 
 No prompt/response text ever reaches these clients beyond the bundle's own
 digests/enums/counts (RULE 1 analog) — the caller is responsible for never
@@ -41,6 +47,19 @@ DEFAULT_FIREWORKS_URL = "https://api.fireworks.ai/inference/v1/chat/completions"
 # whichever value was actually verified live.
 DEFAULT_FIREWORKS_MODEL = "accounts/fireworks/models/muse-spark-open-1026"
 DEFAULT_FIREWORKS_KEY_PATH = Path.home() / ".config" / "aariasec" / "fireworks_api_key"
+
+DEFAULT_META_MODEL_URL = "https://api.meta.ai/v1/chat/completions"
+# muse-spark-1.3 is the hosted (not open-weight) Meta model -- a genuinely
+# different artifact from Baseten/Fireworks's muse-spark-open, which isn't
+# on the Model API at all. Covers the "Model API" half of "meaningfully
+# use Meta Model API and/or Meta open-weight models" with its own real
+# proof, distinct from the open-weight half Baseten already proves.
+DEFAULT_META_MODEL = "muse-spark-1.3"
+# Same key file record-muse/record-claude already read successfully for
+# every real Muse Code session in this project (witness.cli's
+# _DEFAULT_MUSE_KEY_PATH) -- one real, already-working key, no new
+# credential setup needed for this client.
+DEFAULT_META_MODEL_KEY_PATH = Path.home() / ".config" / "aariasec" / "meta_api_key"
 
 
 class LLMClient(Protocol):
@@ -192,4 +211,30 @@ class FireworksClient(_OpenAICompatibleClient):
         super().__init__("Fireworks", api_key, key_path, base_url, model, max_tokens, timeout_s)
 
 
-__all__ = ["BasetenClient", "FireworksClient", "LLMClient", "LLMClientError"]
+class MetaModelClient(_OpenAICompatibleClient):
+    """Real adapter for Meta's own hosted Model API (`muse-spark-1.3` by
+    default) -- first-party, no third-party host in between. Built
+    2026-10-27 reusing the same `META_API_KEY`/key file already proven
+    working for every real Muse Code session in this project. See module
+    docstring for why this is the stronger second-provider choice over a
+    second open-weight host."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        key_path: Path = DEFAULT_META_MODEL_KEY_PATH,
+        base_url: str = DEFAULT_META_MODEL_URL,
+        model: str = DEFAULT_META_MODEL,
+        max_tokens: int = 6000,
+        timeout_s: float = 60.0,
+    ) -> None:
+        super().__init__("Meta Model API", api_key, key_path, base_url, model, max_tokens, timeout_s)
+
+
+__all__ = [
+    "BasetenClient",
+    "FireworksClient",
+    "LLMClient",
+    "LLMClientError",
+    "MetaModelClient",
+]

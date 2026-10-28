@@ -598,6 +598,33 @@ fall-back-to-offline-on-any-failure guarantee — against a deterministic
 fake `LLMClient`, so the *logic* is gate-verified even though the *real*
 API call is only verified by this frozen, timestamped artifact.
 
+## Second live analyst proof: Meta's own hosted Model API, first-party (2026-10-27)
+
+Built after Fireworks' signup rejected every card tried (three different
+cards) — rather than keep fighting a third-party signup, built
+`MetaModelClient` (`witness.analyst.client`): a direct call to Meta's own
+hosted Model API (`https://api.meta.ai/v1/chat/completions`,
+`muse-spark-1.3`), no third-party host in between, reusing the exact same
+`META_API_KEY` already proven working for every real Muse Code session in
+this project. Covers a different half of "meaningfully use Meta Model API
+and/or Meta open-weight models" than the Baseten proof above —
+**Model API**, first-party, vs. **open-weight model**, third-party-hosted
+— with its own independent real artifact, not a restatement of the same
+proof.
+
+**Worked on the first live call, no retries needed:**
+```
+$ witness verify runs/frozen/muse-real-agent-proof-20261027-011548-7dca/bundle.jsonl --with-analyst --analyst-provider meta
+OK: 22 records, findings={'marker_read': 1, 'mismatch': 1}, receipt_ok=True
+policy: PASS (stop findings: 0)
+analyst: status=ok confidence=0.6 codes=[PROC_SPAWN, FS_WRITE, ASSISTANT_CLAIM, MARKER_READ, MISMATCH, NO_OUTBOUND_POST] (advisory narrative only — never affects pass/fail; the policy/chain/signature checks above are the whole gate decision)
+```
+`analyst_status="ok"`, schema-valid, `confidence=0.6` (lower than
+Baseten's 0.91 on a different bundle — not compared directly, different
+model, different run, no claim either is "better"), correctly cited all
+six real finding/event codes with no fabrication. Reproducible by
+anyone with a Meta Model API key: same command, same bundle, same flag.
+
 ## Receipt v0.2 / CI gate — `witness verify` runtime (measured 2026-10-27)
 
 Against the real, committed, 13-record flagship bundle

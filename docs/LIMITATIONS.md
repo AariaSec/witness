@@ -34,17 +34,27 @@ what's solid versus what's a placeholder.
   window and any third-party credit pool can both run dry or rate-limit
   before judging.
 - **`FireworksClient` (second analyst provider) — built and unit-tested,
-  not yet live-verified.** Added 2026-10-27 alongside `BasetenClient` as
+  still not live-verified.** Added 2026-10-27 alongside `BasetenClient` as
   a second, independent host for the same open-weight model (Fireworks
   hackathon credits granted that day) — same code path, selected via
-  `witness verify --with-analyst --analyst-provider fireworks`. Unit
-  tests cover the missing-key-file error path; the live HTTP call and the
-  exact Fireworks model-catalog id (`DEFAULT_FIREWORKS_MODEL` in
-  `analyst/client.py` is a placeholder, Baseten's naming convention
-  guessed at, not confirmed) are both unverified pending a real Fireworks
-  API key. Update this entry and `docs/NUMBERS.md` with the real result
-  once that key is available — do not claim it works before that call
-  actually succeeds once.
+  `witness verify --with-analyst --analyst-provider fireworks`. Blocked:
+  Fireworks' signup rejected three different cards. Unit tests cover the
+  missing-key-file error path; the live HTTP call and the exact Fireworks
+  model-catalog id (`DEFAULT_FIREWORKS_MODEL` is a placeholder, Baseten's
+  naming convention guessed at, not confirmed) remain unverified. Left in
+  the codebase in case the path becomes usable later — not deleted, not
+  claimed as working.
+- **`MetaModelClient` (second analyst provider, confirmed live) —
+  Meta's own hosted Model API, first-party, no third-party host.** Built
+  the same day as the Fireworks attempt above, as a strictly stronger
+  alternative once that signup failed: reuses the exact `META_API_KEY`
+  already proven working for every real Muse Code session in this
+  project — zero new credential setup. Worked on the first live call:
+  `witness verify --with-analyst --analyst-provider meta` against the
+  real Muse flagship bundle returned `analyst_status="ok"`,
+  `confidence=0.6`, all six real finding/event codes cited correctly, no
+  fabrication. See `docs/NUMBERS.md`'s second live-analyst-proof section
+  for the full transcript.
 - **Single-machine, single-run scope.** There is no fleet view, no
   cross-run aggregation beyond the arena scoring (if shipped — see
   `NUMBERS.md`), and no persistence of findings beyond one bundle.
