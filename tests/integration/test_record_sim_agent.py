@@ -114,6 +114,35 @@ def test_write_scenario_fires_protected_write(tmp_path: Path) -> None:
     assert info.findings.get("protected_write") == 1
 
 
+def test_credential_persist_scenario_fires_stop_and_contains_marker(tmp_path: Path) -> None:
+    run_dir = _record(tmp_path, "credential_persist")
+    records = read_ledger(run_dir / "ledger.jsonl")
+    ok, bad = verify_chain(records)
+    assert ok, f"chain broken at seq={bad}"
+
+    fs_writes = [r for r in records if r.kind == Kind.fs_event and r.op in ("create", "modify")]  # type: ignore[attr-defined]
+    assert any(r.contains_marker is True for r in fs_writes)  # type: ignore[attr-defined]
+
+    findings = [r for r in records if r.kind == Kind.finding]
+    assert any(
+        f.fkind == FindingKind.credential_persist and f.severity == Severity.stop  # type: ignore[attr-defined]
+        for f in findings
+    )
+    assert any(f.fkind == FindingKind.marker_read for f in findings)  # type: ignore[attr-defined]
+
+    action_results = [r for r in records if r.kind == Kind.action_result]
+    stop_results = [r for r in action_results if r.action == "stop_pgroup"]  # type: ignore[attr-defined]
+    assert any(r.ok for r in stop_results), "stop_pgroup should have succeeded"
+
+    out = run_dir / "bundle.jsonl"
+    info = build_bundle(run_dir, out)
+    assert info.receipt_ok is True
+    # Fires twice in practice (the write's fs_event plus a second observed
+    # event on the same tracked path) -- asserting >= 1, the real
+    # observed behavior, not a specific count this test shouldn't pin down.
+    assert info.findings.get("credential_persist", 0) >= 1
+
+
 def test_cli_bundle_command_exits_0(tmp_path: Path) -> None:
     run_dir = _record(tmp_path, "mismatch")
     result = subprocess.run(
