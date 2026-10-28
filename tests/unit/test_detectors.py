@@ -14,6 +14,7 @@ from witness.detectors import (
 from witness.detectors import drift as drift_mod
 from witness.models import (
     AssistantClaim,
+    ClaimTool,
     FindingKind,
     FsEvent,
     FsOp,
@@ -186,13 +187,96 @@ def test_mismatch_fires_only_once_per_run_end() -> None:
     assert len(findings2) == 0
 
 
-def test_drift_always_returns_no_finding() -> None:
+def _timed(rec, n, ts_mono):  # type: ignore[no-untyped-def]
+    return rec.model_copy(update={"seq": n, "ts_mono": ts_mono})
+
+
+def _run_session(records):  # type: ignore[no-untyped-def]
+    """Thread a record list through drift's own evaluate(), returning
+    whatever the final (run_end) call produces -- same incremental
+    accumulation path record-muse/record-claude actually use."""
+    state = DetectorState()
+    findings = []
+    for rec in records:
+        state, new_findings = drift_mod.evaluate(state, rec)
+        findings.extend(new_findings)
+    return findings
+
+
+def test_drift_non_run_end_record_never_fires() -> None:
     state = DetectorState()
     rec = _seq(MarkerRead(peer_pid=1, peer_exe="x"), 1)
     state, findings = drift_mod.evaluate(state, rec)
     assert findings == []
-    assert drift_mod.drift_score({}, {}) == 0.0
-    assert drift_mod.session_shape([]) == {}
+
+
+def test_drift_score_empty_inputs_is_zero() -> None:
+    assert drift_mod.drift_score({}, drift_mod.SessionShape()) == 0.0
+    assert drift_mod.session_shape([]) == {
+        "tool_mix": {},
+        "dest_novelty": 0.0,
+        "inter_event_gaps_ms": [],
+        "record_count": 0,
+    }
+
+
+def test_drift_session_matching_baseline_timing_does_not_fire() -> None:
+    """Gaps close to the real baseline's median (~0.2ms) should stay well
+    under DRIFT_THRESHOLD -- the common case must not false-fire."""
+    records = [
+        _timed(FsEvent(op=FsOp.create, path=f"f{i}.txt", protected=False), i, i * 0.0002)
+        for i in range(10)
+    ] + [_timed(RunEnd(reason="assistant_exit", records=10), 10, 10 * 0.0002)]
+    findings = _run_session(records)
+    assert findings == []
+
+
+def test_drift_session_with_wildly_different_timing_fires_info_severity() -> None:
+    """Gaps of whole seconds, vs. a training median around 0.2ms, must
+    clear the pre-registered 3.5 modified-z threshold."""
+    records = [
+        _timed(FsEvent(op=FsOp.create, path=f"f{i}.txt", protected=False), i, float(i))
+        for i in range(10)
+    ] + [_timed(RunEnd(reason="assistant_exit", records=10), 10, 10.0)]
+    findings = _run_session(records)
+    assert len(findings) == 1
+    assert findings[0].fkind == FindingKind.drift
+    assert findings[0].severity == Severity.info
+    assert findings[0].score is not None
+    assert findings[0].score >= drift_mod.DRIFT_THRESHOLD
+
+
+def test_drift_finding_has_no_policy_action() -> None:
+    """drift must never block a merge or stop a process group -- see
+    POLICY in actions/__init__.py and the module's own docstring on why."""
+    from witness.actions import POLICY
+
+    assert POLICY[FindingKind.drift] == []
+
+
+def test_drift_v2_baseline_zero_false_alarms_on_real_holdouts() -> None:
+    """Pins the real v2-baseline validation result (2026-10-27,
+    docs/NUMBERS.md's drift-detector section): zero false alarms across
+    four real held-out sessions, including two genuinely malicious ones.
+    Only the three holdout bundles committed on `main` are checked here
+    (the fourth, the real credential_persist catch, lives on a demo
+    branch) -- a regression here means the baseline or threshold changed
+    without re-running the validation in that writeup."""
+    from pathlib import Path
+
+    from witness.ledger import read_ledger
+
+    repo_root = Path(__file__).resolve().parents[2]
+    holdouts = [
+        repo_root / "runs/frozen/muse-real-agent-proof-20261027-011548-7dca/bundle.jsonl",
+        repo_root / "runs/frozen/claude-real-agent-proof-20261027-012001-c976/bundle.jsonl",
+        repo_root / "runs/frozen/pgroup-escape-fresh-holdout-20261027-020507-c256/bundle.jsonl",
+    ]
+    for path in holdouts:
+        records = read_ledger(path)
+        shape = drift_mod.session_shape(records)
+        score = drift_mod.drift_score(drift_mod.DRIFT_BASELINE, shape)
+        assert score < drift_mod.DRIFT_THRESHOLD, f"{path.name} false-fired at score={score}"
 
 
 def test_dispatcher_runs_all_detectors() -> None:

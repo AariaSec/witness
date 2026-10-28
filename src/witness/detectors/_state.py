@@ -13,6 +13,23 @@ DETECTOR_VERSION = "1.0"
 
 
 @dataclass(frozen=True)
+class DriftAccumulator:
+    """Running sufficient statistics for the drift detector's session
+    shape — defined here, not in `drift.py`, for the same circular-import
+    reason `DetectorState` itself lives here. Nothing here is raw content:
+    tool names (a fixed `ClaimTool` vocabulary), path strings already
+    bounded by `RelPath`, counts, and timestamps already present on every
+    record's `Base` envelope."""
+
+    tool_counts: tuple[str, ...] = ()
+    fs_paths: frozenset[str] = frozenset()
+    fs_event_count: int = 0
+    record_count: int = 0
+    last_ts_mono: float | None = None
+    gaps_ms: tuple[float, ...] = ()
+
+
+@dataclass(frozen=True)
 class DetectorState:
     """Accumulated, append-only state threaded through every detector call.
 
@@ -31,6 +48,7 @@ class DetectorState:
     recorded_hosts: frozenset[str] = frozenset()
     recorded_host_seqs: tuple[int, ...] = ()
     mismatch_fired: bool = False
+    drift: DriftAccumulator = DriftAccumulator()
 
 
-__all__ = ["DETECTOR_VERSION", "DetectorState"]
+__all__ = ["DETECTOR_VERSION", "DetectorState", "DriftAccumulator"]

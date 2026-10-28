@@ -6,11 +6,23 @@ what's solid versus what's a placeholder.
 
 ## Known, by design
 
-- **Drift/behavioral-shape detector is a stub.** `detectors/drift.py`
-  always returns no finding. It is not scored, not shown in the console as
-  a working signal, and not part of any claimed detection rate. If it ever
-  becomes real, it only gets promoted to a headline number after a
-  train/holdout split and a pre-registered threshold — not before.
+- **Drift/behavioral-shape detector — closed 2026-10-27, `info`-severity
+  only, not a headline number.** `detectors/drift.py` now scores real
+  session shape against a frozen, pre-registered baseline (median/MAD
+  modified z-score, threshold 3.5). Real train/holdout discipline: a
+  first baseline (5 synthetic + 2 real sessions) turned out to mostly
+  detect "real agent vs. scripted session," not benign vs. malicious —
+  found by validating against real held-out data, not assumed to work.
+  Fixed by recording 8 more real sessions (`corpus/benign-real/`) and
+  rebuilding the baseline from 10 real sessions only. Re-validated: zero
+  false alarms on four real held-out sessions, including two genuinely
+  malicious ones (expected — drift measures timing/shape, a different
+  signal from the content-specific detectors, not a replacement for
+  them). Still disclosed as small-n (n=10) and experimental — `POLICY`
+  attaches no action to it, so it can never block a merge, and it is not
+  counted in any detection-rate claim in this file or `docs/NUMBERS.md`.
+  Full writeup: `detectors/drift.py`'s module docstring and
+  `docs/NUMBERS.md`'s drift-detector section.
 - **Analyst report defaults to offline, on purpose — not because a live
   path doesn't exist.** `analyst/run.py` always falls back to a
   deterministic template report from bundle counts if no live client is

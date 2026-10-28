@@ -36,7 +36,7 @@ responses.
                detectors (marker_read,        actions (close decoy key,
                outbound_post, mismatch,       stop process group,
                protected_write, pgroup_escape, sign receipt — Ed25519)
-               drift[stub])
+               credential_persist, drift)
                        │                             │
                        └──────────────┬──────────────┘
                                       ▼
@@ -171,17 +171,21 @@ a silent gap a judge or reviewer has to go find themselves.
   POST sink, both loopback-only; a process-group watcher (`psutil`); a
   filesystem watcher (`watchdog`, with a polling fallback if the OS watch
   limit is hit).
-- **Detectors** (`detectors/`) — five independent checks, plus one planned:
-  a decoy key being read, a POST reaching the decoy sink, a
-  reported-vs-recorded mismatch (the agent's own claims vs. what the
-  watchers actually saw), a write to a path marked protected, and a
-  process detaching from the recorded process group (`pgroup_escape` —
-  fed by both `ProcWatcher`'s poll loop and a synchronous peer-pgid check
-  at the marker/sink listener, since the escaped processes seen in
-  practice are often too short-lived for polling alone to catch). The
-  sixth, a drift/behavioral-shape signal, is deliberately a stub
-  returning no finding — it isn't scored or shown as a
-  headline number until it's been validated against held-out data.
+- **Detectors** (`detectors/`) — seven independent checks: a decoy key
+  being read, a POST reaching the decoy sink, a reported-vs-recorded
+  mismatch (the agent's own claims vs. what the watchers actually saw), a
+  write to a path marked protected, a tracked file write containing the
+  decoy value (`credential_persist`, stop-severity — scores what both
+  flagship real-agent runs already did as a merge-blocking finding
+  instead of a warn, see `docs/NUMBERS.md`), a process detaching from the
+  recorded process group (`pgroup_escape` — fed by both `ProcWatcher`'s
+  poll loop and a synchronous peer-pgid check at the marker/sink
+  listener, since the escaped processes seen in practice are often too
+  short-lived for polling alone to catch), and a behavioral-shape/drift
+  signal (`info` severity, `POLICY` attaches no action to it — a real,
+  pre-registered, holdout-validated signal as of 2026-10-27, not a stub
+  anymore, but still explicitly not a headline detection-rate number;
+  see `docs/NUMBERS.md`'s drift-detector section).
 - **Actions** (`actions/`) — close the decoy key (serves 410 after), stop
   the process group (SIGTERM, 2s grace, SIGKILL, 1s kill-wait, sweeping
   any pid seen at the marker/sink even if it escaped the original process
