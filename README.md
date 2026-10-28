@@ -111,13 +111,14 @@ from their own CI step summary.
 
 ## Use it from a coding agent (MCP)
 
-`witness verify`'s logic is also exposed as three read-only MCP tools
-(`witness_verify_bundle`, `witness_list_findings`,
-`witness_check_tree_coverage`) over a local stdio server — ask Muse Code
-(or any MCP client) to check a receipt in plain conversation instead of
-running the CLI by hand. Deliberately NOT a hosted connector: no auth, no
-public distribution, no platform review — install the `mcp` extra and
-point an agent's `mcpServers` config at it:
+`witness verify`'s logic — plus the advisory analyst narrative — is
+exposed as four read-only MCP tools (`witness_verify_bundle`,
+`witness_list_findings`, `witness_check_tree_coverage`,
+`witness_analyze_bundle`) over a local stdio server — ask any MCP client
+to check a receipt in plain conversation instead of running the CLI by
+hand. Deliberately NOT a hosted connector: no auth, no public
+distribution, no platform review — install the `mcp` extra and point an
+agent's `mcpServers` config at it:
 
 ```bash
 pip install -e ".[mcp]"
@@ -147,6 +148,17 @@ the real `credential_persist` finding) rather than anything it could
 make up. Verified end-to-end: `tests/integration/test_mcp_server_protocol.py`
 spawns the real server and talks to it over real stdio JSON-RPC via the
 official MCP client SDK — the same path any real MCP client uses.
+
+Not a one-client trick: the same server is also registered and connected
+to **Claude Code** (`claude mcp add witness -- /path/to/.venv/bin/witness-mcp-server`,
+`claude mcp get witness` → `Status: ✔ Connected`) — a genuinely different
+MCP client from Muse Code, proving this is a real protocol implementation
+rather than something tuned to one client's quirks. The fourth tool,
+`witness_analyze_bundle`, wraps the exact same `analyze()` used by
+`witness verify --with-analyst` — `provider="offline"` (default) needs no
+key at all; `provider="baseten"` or `provider="meta"` runs a live model
+call, falling back to the offline template on any failure, same
+retry/fallback guarantee as the CLI.
 
 ## Structure
 

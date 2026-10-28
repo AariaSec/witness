@@ -45,12 +45,13 @@ async def _list_tools_and_call() -> tuple[list[str], str]:
             return [t.name for t in tools.tools], text
 
 
-def test_server_advertises_all_three_tools_over_real_stdio() -> None:
+def test_server_advertises_all_four_tools_over_real_stdio() -> None:
     names, _ = _run(_list_tools_and_call())
     assert set(names) == {
         "witness_verify_bundle",
         "witness_list_findings",
         "witness_check_tree_coverage",
+        "witness_analyze_bundle",
     }
 
 
@@ -58,3 +59,23 @@ def test_real_tool_call_over_real_stdio_returns_correct_result() -> None:
     _, text = _run(_list_tools_and_call())
     assert '"ok": true' in text.lower() or '"ok":true' in text.lower().replace(" ", "")
     assert '"policy": "PASS"' in text or '"policy":"PASS"' in text.replace(" ", "")
+
+
+async def _call_analyze_offline() -> str:
+    params = StdioServerParameters(
+        command=sys.executable, args=["-m", "witness.mcp_server"], cwd=str(REPO_ROOT)
+    )
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool(
+                "witness_analyze_bundle", {"bundle_path": _REAL_BUNDLE}
+            )
+            return result.content[0].text if result.content else ""
+
+
+def test_analyze_bundle_tool_call_over_real_stdio_returns_offline_report() -> None:
+    text = _run(_call_analyze_offline())
+    assert '"analyst_status": "offline"' in text or '"analyst_status":"offline"' in text.replace(
+        " ", ""
+    )

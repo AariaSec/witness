@@ -29,7 +29,7 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from witness.bundle import BundleChainInvalid, BundleQuarantined, validate_bundle
-from witness.cli import _tree_check_report
+from witness.cli import _resolve_analyst_client, _tree_check_report
 from witness.ledger import read_ledger
 from witness.models import Finding, Kind, Receipt
 
@@ -131,6 +131,36 @@ def witness_check_tree_coverage(bundle_path: str, tree_dir: str) -> dict[str, An
         "modified": modified,
         "unattested": unattested,
         "details": [{"status": status, "path": path} for status, path in details],
+    }
+
+
+@mcp.tool(
+    description=(
+        "Produce an advisory narrative Report for a witness bundle.jsonl: "
+        "a timeline of findings in canonical codes, reported-vs-recorded "
+        "discrepancies, and a confidence score. `provider` is "
+        "'offline' (default: zero API key, zero network call, a "
+        "deterministic template), 'baseten' (Meta open-weight Muse Spark "
+        "Open), or 'meta' (Meta's own first-party hosted Model API). A "
+        "live provider that's unavailable or fails schema validation "
+        "falls back to the offline template automatically — this call "
+        "never raises on a bad or missing key. Advisory only: this report "
+        "never affects witness_verify_bundle's pass/fail policy decision, "
+        "same as `witness verify --with-analyst`."
+    )
+)
+def witness_analyze_bundle(bundle_path: str, provider: str = "offline") -> dict[str, Any]:
+    from witness.analyst.run import analyze
+
+    client = None if provider == "offline" else _resolve_analyst_client(provider)
+    report = analyze(Path(bundle_path), client=client)
+    return {
+        "model_id": report.model_id,
+        "analyst_status": report.analyst_status,
+        "confidence": report.confidence,
+        "summary_codes": report.summary_codes,
+        "timeline": [step.model_dump(mode="json") for step in report.timeline],
+        "reported_vs_recorded": [d.model_dump(mode="json") for d in report.reported_vs_recorded],
     }
 
 

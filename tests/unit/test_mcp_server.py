@@ -77,6 +77,25 @@ def test_list_findings_never_includes_raw_content_keys() -> None:
         assert set(f.keys()) <= allowed_keys
 
 
+def test_analyze_bundle_offline_default_never_calls_network() -> None:
+    from witness.mcp_server import witness_analyze_bundle
+
+    result = witness_analyze_bundle(str(_REAL_BUNDLE))
+
+    assert result["analyst_status"] == "offline"
+    assert result["model_id"] == "offline-template"
+    assert 0.0 <= result["confidence"] <= 1.0
+    assert all(code for code in result["summary_codes"])
+
+
+def test_analyze_bundle_unknown_provider_falls_back_to_offline_not_exception() -> None:
+    from witness.mcp_server import witness_analyze_bundle
+
+    result = witness_analyze_bundle(str(_REAL_BUNDLE), provider="not-a-real-provider")
+
+    assert result["analyst_status"] == "offline"
+
+
 def test_check_tree_coverage_on_a_bundle_with_no_receipt_git_binding() -> None:
     """The real flagship bundles predate (or were recorded outside) a git
     tree, so every present file is correctly 'unattested', not an error."""

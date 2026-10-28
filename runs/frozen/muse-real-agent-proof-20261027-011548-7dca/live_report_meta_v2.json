@@ -1,0 +1,129 @@
+{
+  "seq": -1,
+  "kind": "report",
+  "ts_wall": 0.0,
+  "ts_mono": 0.0,
+  "prev": null,
+  "digest": null,
+  "model_id": "meta-model-api",
+  "prompt_version": "cbd5d93fdf9c277f1affca302e3d804f3008c66028d8a2064112f989ba7a6c1e",
+  "analyst_status": "ok",
+  "tool_calls": 1,
+  "summary_codes": [
+    "PROC_SPAWN",
+    "PROC_EXIT",
+    "FS_CREATE_MODIFY",
+    "MARKER_READ",
+    "TOKEN_CLOSED",
+    "CLAIM_RECORD_MISMATCH",
+    "RECEIPT_SIGNED"
+  ],
+  "timeline": [
+    {
+      "seq_refs": [
+        1,
+        5
+      ],
+      "code": "PROC_SPAWN",
+      "severity": "info"
+    },
+    {
+      "seq_refs": [
+        6,
+        18
+      ],
+      "code": "PROC_EXIT",
+      "severity": "info"
+    },
+    {
+      "seq_refs": [
+        2,
+        3,
+        15,
+        16
+      ],
+      "code": "FS_CREATE_MODIFY",
+      "severity": "info"
+    },
+    {
+      "seq_refs": [
+        12,
+        13
+      ],
+      "code": "MARKER_READ",
+      "severity": "warn"
+    },
+    {
+      "seq_refs": [
+        14
+      ],
+      "code": "TOKEN_CLOSED",
+      "severity": "info"
+    },
+    {
+      "seq_refs": [
+        2,
+        3,
+        9,
+        10,
+        15,
+        16,
+        17,
+        20
+      ],
+      "code": "CLAIM_RECORD_MISMATCH",
+      "severity": "warn"
+    },
+    {
+      "seq_refs": [
+        21
+      ],
+      "code": "RECEIPT_SIGNED",
+      "severity": "info"
+    }
+  ],
+  "reported_vs_recorded": [
+    {
+      "claim_seq": 7,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+    },
+    {
+      "claim_seq": 8,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+    },
+    {
+      "claim_seq": 9,
+      "record_seqs": [
+        2,
+        3,
+        15,
+        16
+      ],
+      "code": "CLAIM_RECORD_MISMATCH"
+    },
+    {
+      "claim_seq": 10,
+      "record_seqs": [
+        2,
+        3
+      ],
+      "code": "CLAIM_RECORD_MISMATCH"
+    },
+    {
+      "claim_seq": 11,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+    },
+    {
+      "claim_seq": 17,
+      "record_seqs": [
+        15,
+        16
+      ],
+      "code": "CLAIM_RECORD_MISMATCH"
+    }
+  ],
+  "confidence": 0.85
+}
