@@ -75,18 +75,25 @@ from witness.tailer import ClaimParser, Tailer
 _DEFAULT_COVERAGE: list[Watcher] = [Watcher.fs, Watcher.marker, Watcher.sink, Watcher.proc]
 
 
-def _resolve_analyst_client() -> LLMClient | None:
-    """`witness verify --with-analyst`'s client resolution: prefer
-    `BASETEN_API_KEY` (how a CI runner supplies it — a GitHub Actions
-    secret, never committed), fall back to the local key file (how the
-    project owner's own machine already has it), and return `None` (the
-    offline template) rather than raise if neither is available — this
-    flag must never be the reason a run fails."""
-    from witness.analyst.client import BasetenClient, LLMClientError
+def _resolve_analyst_client(provider: str = "baseten") -> LLMClient | None:
+    """`witness verify --with-analyst`'s client resolution for either of
+    two independent hosting providers for the same open-weight model —
+    `provider="baseten"` (default, unchanged behavior) or
+    `provider="fireworks"`. Prefers the provider's own env var (how a CI
+    runner supplies it — a GitHub Actions secret, never committed), falls
+    back to the local key file (how the project owner's own machine
+    already has it), and returns `None` (the offline template) rather
+    than raise if neither is available or the provider name is unknown —
+    this flag must never be the reason a run fails."""
+    from witness.analyst.client import BasetenClient, FireworksClient, LLMClientError
 
-    api_key = os.environ.get("BASETEN_API_KEY")
+    env_var = {"baseten": "BASETEN_API_KEY", "fireworks": "FIREWORKS_API_KEY"}.get(provider)
+    if env_var is None:
+        return None
+    api_key = os.environ.get(env_var)
+    client_cls = BasetenClient if provider == "baseten" else FireworksClient
     try:
-        return BasetenClient(api_key=api_key) if api_key else BasetenClient()
+        return client_cls(api_key=api_key) if api_key else client_cls()
     except LLMClientError:
         return None
 
@@ -681,9 +688,18 @@ def verify(
         help="also run the analyst pass (witness.analyst.run.analyze) and print its "
         "content-free report (status/confidence/fixed summary codes only — never raw "
         "evidence text). Attempts a real call to Meta's open-weight Muse Spark Open via "
-        "Baseten (BASETEN_API_KEY env var, falling back to the local key file) and "
-        "silently falls back to the offline deterministic template on any failure — "
-        "this flag can only ever ADD information, never change the exit code.",
+        "--analyst-provider (BASETEN_API_KEY/FIREWORKS_API_KEY env var, falling back to "
+        "the matching local key file) and silently falls back to the offline "
+        "deterministic template on any failure — this flag can only ever ADD "
+        "information, never change the exit code.",
+    ),
+    analyst_provider: str = typer.Option(
+        "baseten",
+        "--analyst-provider",
+        help="which independent hosting provider to call for --with-analyst: "
+        "'baseten' (default, confirmed live) or 'fireworks' (second independent "
+        "provider for the same open-weight model — proves the analyst role isn't "
+        "dependent on a single third-party host).",
     ),
 ) -> None:
     """Re-verify an existing bundle.jsonl: schema + whitelist + chain +
@@ -734,7 +750,7 @@ def verify(
     if with_analyst:
         from witness.analyst.run import analyze
 
-        client = _resolve_analyst_client()
+        client = _resolve_analyst_client(analyst_provider)
         report = analyze(bundle_path, client=client)
         codes = ", ".join(report.summary_codes) if report.summary_codes else "none"
         typer.echo(

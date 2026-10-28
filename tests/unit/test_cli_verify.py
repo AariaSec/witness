@@ -363,7 +363,7 @@ def test_with_analyst_falls_back_to_offline_template_without_a_key(monkeypatch) 
     Patches `_resolve_analyst_client` itself (rather than poking at
     `BasetenClient`'s internals) so this test is deterministic and never
     makes a real network call, regardless of what's on this machine."""
-    monkeypatch.setattr("witness.cli._resolve_analyst_client", lambda: None)
+    monkeypatch.setattr("witness.cli._resolve_analyst_client", lambda *a, **k: None)
 
     result = runner.invoke(app, ["verify", str(_REAL_MUSE_BUNDLE), "--with-analyst"])
 
@@ -376,9 +376,61 @@ def test_with_analyst_never_changes_exit_code_on_a_stop_finding(monkeypatch) -> 
     """Same guarantee on the FAIL path: the analyst note is printed, but
     the exit code still comes entirely from the policy/chain/signature
     checks, never from the analyst call succeeding or failing."""
-    monkeypatch.setattr("witness.cli._resolve_analyst_client", lambda: None)
+    monkeypatch.setattr("witness.cli._resolve_analyst_client", lambda *a, **k: None)
 
     result = runner.invoke(app, ["verify", str(_STOP_FINDING_BUNDLE), "--with-analyst"])
 
     assert result.exit_code == VERIFY_EXIT_POSTURE_FAIL
     assert "analyst: status=offline" in result.output
+
+
+def test_analyst_provider_flag_is_passed_through_to_resolver(monkeypatch) -> None:
+    """--analyst-provider fireworks must reach _resolve_analyst_client,
+    not silently stay on the baseten default."""
+    seen: list[str] = []
+    monkeypatch.setattr(
+        "witness.cli._resolve_analyst_client", lambda provider: (seen.append(provider), None)[1]
+    )
+
+    result = runner.invoke(
+        app, ["verify", str(_REAL_MUSE_BUNDLE), "--with-analyst", "--analyst-provider", "fireworks"]
+    )
+
+    assert result.exit_code == VERIFY_EXIT_OK
+    assert seen == ["fireworks"]
+
+
+def test_analyst_provider_defaults_to_baseten(monkeypatch) -> None:
+    seen: list[str] = []
+    monkeypatch.setattr(
+        "witness.cli._resolve_analyst_client", lambda provider: (seen.append(provider), None)[1]
+    )
+
+    runner.invoke(app, ["verify", str(_REAL_MUSE_BUNDLE), "--with-analyst"])
+
+    assert seen == ["baseten"]
+
+
+def test_resolve_analyst_client_unknown_provider_returns_none() -> None:
+    from witness.cli import _resolve_analyst_client
+
+    assert _resolve_analyst_client("not-a-real-provider") is None
+
+
+def test_fireworks_client_missing_key_file_raises(tmp_path) -> None:
+    """Same guarantee BasetenClient's key-file read already has, for the
+    second provider: a missing key file is a clean LLMClientError, not an
+    unhandled OSError."""
+    from witness.analyst.client import FireworksClient, LLMClientError
+
+    with pytest.raises(LLMClientError, match="no Fireworks key"):
+        FireworksClient(key_path=tmp_path / "no-such-key-file")
+
+
+def test_baseten_client_missing_key_file_raises(tmp_path) -> None:
+    """Was previously untested at this level (only exercised live) --
+    closing the gap while adding FireworksClient's equivalent above."""
+    from witness.analyst.client import BasetenClient, LLMClientError
+
+    with pytest.raises(LLMClientError, match="no Baseten key"):
+        BasetenClient(key_path=tmp_path / "no-such-key-file")

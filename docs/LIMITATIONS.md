@@ -33,6 +33,18 @@ what's solid versus what's a placeholder.
   judge-facing demo depends on, since the hackathon's Meta API credit
   window and any third-party credit pool can both run dry or rate-limit
   before judging.
+- **`FireworksClient` (second analyst provider) — built and unit-tested,
+  not yet live-verified.** Added 2026-10-27 alongside `BasetenClient` as
+  a second, independent host for the same open-weight model (Fireworks
+  hackathon credits granted that day) — same code path, selected via
+  `witness verify --with-analyst --analyst-provider fireworks`. Unit
+  tests cover the missing-key-file error path; the live HTTP call and the
+  exact Fireworks model-catalog id (`DEFAULT_FIREWORKS_MODEL` in
+  `analyst/client.py` is a placeholder, Baseten's naming convention
+  guessed at, not confirmed) are both unverified pending a real Fireworks
+  API key. Update this entry and `docs/NUMBERS.md` with the real result
+  once that key is available — do not claim it works before that call
+  actually succeeds once.
 - **Single-machine, single-run scope.** There is no fleet view, no
   cross-run aggregation beyond the arena scoring (if shipped — see
   `NUMBERS.md`), and no persistence of findings beyond one bundle.

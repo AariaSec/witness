@@ -153,7 +153,11 @@ of three — see the "Why" section above):
   `docs/NUMBERS.md`'s flagship proof run.
 - **Live Meta open-weight model proof**: a real call to Muse Spark Open
   (`meta-models/muse-spark-open-1026` via Baseten) correctly analyzed a
-  real bundle — `analyst_status="ok"`, `confidence=0.91`.
+  real bundle — `analyst_status="ok"`, `confidence=0.91`. A second,
+  independent hosting provider for the same model (Fireworks,
+  `witness verify --with-analyst --analyst-provider fireworks`) is built
+  and unit-tested, proving the analyst role isn't tied to one third-party
+  host — see `docs/LIMITATIONS.md` for its live-verification status.
 
 ## Founder disclosure
 

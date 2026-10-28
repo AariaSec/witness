@@ -43,6 +43,19 @@ inputs:
       (no key present -> graceful fallback, not a failure).
     required: false
     default: ""
+  fireworks-api-key:
+    description: >-
+      Fireworks API key for the live analyst call via that provider
+      instead of Baseten — a second, independent host for the same
+      open-weight model. Only used when analyst-provider is 'fireworks'.
+    required: false
+    default: ""
+  analyst-provider:
+    description: >-
+      Which independent hosting provider --with-analyst calls: 'baseten'
+      (default, confirmed live) or 'fireworks'.
+    required: false
+    default: "baseten"
 outputs:
   result:
     description: "'pass' or 'fail'"
@@ -67,6 +80,7 @@ runs:
       shell: bash
       env:
         BASETEN_API_KEY: ${{ inputs.baseten-api-key }}
+        FIREWORKS_API_KEY: ${{ inputs.fireworks-api-key }}
       run: |
         set +e
         ARGS=("${{ inputs.bundle-path }}")
@@ -74,7 +88,7 @@ runs:
           ARGS+=(--against-tree "${{ inputs.against-tree }}")
         fi
         if [ "${{ inputs.with-analyst }}" = "true" ]; then
-          ARGS+=(--with-analyst)
+          ARGS+=(--with-analyst --analyst-provider "${{ inputs.analyst-provider }}")
         fi
         OUTPUT="$(witness verify "${ARGS[@]}" 2>&1)"
         EXIT_CODE=$?
