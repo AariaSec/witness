@@ -278,10 +278,14 @@ export function ConfidenceGauge({ report, t, shown, size = 176 }: ConfidenceGaug
       <figcaption className="mt-2 flex flex-col items-center gap-1 text-center">
         <span
           className={`rounded-sm border px-1.5 py-[2px] font-mono text-[9.5px] font-bold tracking-[0.12em] ${
-            model ? 'border-info/40 bg-info/10 text-info' : 'border-fg-4/50 bg-white/[0.03] text-fg-3'
+            model
+              ? 'border-info/40 bg-info/10 text-info'
+              : report.analyst_status === 'offline'
+                ? 'border-accent/50 bg-accent/10 text-accent'
+                : 'border-warn/50 bg-warn/10 text-warn'
           }`}
         >
-          {model ? 'LIVE MODEL READING' : report.analyst_status === 'offline' ? 'TEMPLATE CONSTANT' : 'SCHEMA-FAIL FALLBACK'}
+          {model ? 'LIVE MODEL READING' : report.analyst_status === 'offline' ? 'TEMPLATE CONSTANT · BY DESIGN' : 'SCHEMA-FAIL FALLBACK'}
         </span>
         <span className="font-mono text-[10px] text-fg-4">
           {shown ? `confidence = ${t.value.toFixed(2)} · seq #${report.seq}` : 'scrub to the report record'}
