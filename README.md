@@ -168,6 +168,8 @@ retry/fallback guarantee as the CLI.
 - `corpus/benign/` — recorded benign-run bundles (metadata only)
 - `runs/frozen/` — the exact runs behind every number in this README
 - `docs/` — architecture, threat model, numbers-with-provenance, demo script
+  (start with `docs/CAPABILITY_MAP.md` for the one-table claim/evidence/
+  boundary summary of everything below)
 
 ## Real numbers, not claims
 
