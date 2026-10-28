@@ -31,11 +31,16 @@ const R = 82;
 /** surface y for a given level 0..1 (top of the glass at level 1) */
 const surfaceY = (level: number) => CY + R - level * 2 * R;
 
-type Tone = { top: string; bottom: string; back: string; glow: string; rim: string };
+type Tone = { top: string; bottom: string; back: string; glow: string; rim: string; crest: string };
 
 const TONES: Record<'model' | 'template', Tone> = {
-  model: { top: '#7da5ff', bottom: '#1f3a9e', back: '#6f9bff', glow: C.info, rim: '#6f9bff' },
-  template: { top: '#8590A2', bottom: '#3a4458', back: '#566179', glow: '#566179', rim: '#566179' },
+  model: { top: '#7da5ff', bottom: '#1f3a9e', back: '#6f9bff', glow: C.info, rim: '#6f9bff', crest: '#dce7ff' },
+  // A template constant isn't a model judgment, so it's drawn as mercury,
+  // not a blue liquid: a neutral, inert, metallic grey -- never mistakable
+  // for a "live" reading. High top/bottom contrast + a bright sheen band
+  // (see the `mercurySheen` gradient below) is what reads as liquid METAL
+  // rather than flat grey paint.
+  template: { top: '#eef1f6', bottom: '#11141a', back: '#8b93a3', glow: '#aab3c2', rim: '#9aa3b4', crest: '#f4f6fa' },
 };
 
 const reducedMotion = () =>
@@ -69,6 +74,7 @@ interface LiquidProps {
 /** The SVG instrument. Animates via refs (no React re-render per frame). */
 function Liquid({ value, filled, tone, size }: LiquidProps) {
   const uid = useId().replace(/:/g, '');
+  const isMercury = tone === TONES.template;
   const front = useRef<SVGPathElement>(null);
   const back = useRef<SVGPathElement>(null);
   const crest = useRef<SVGPathElement>(null);
@@ -148,6 +154,16 @@ function Liquid({ value, filled, tone, size }: LiquidProps) {
           <stop offset="0" stopColor={tone.top} stopOpacity="0.95" />
           <stop offset="1" stopColor={tone.bottom} stopOpacity="0.98" />
         </linearGradient>
+        {/* Mercury-only: two angled bright streaks over a dark gap -- the
+            double-highlight that reads as liquid metal, not flat paint. */}
+        <linearGradient id={g('mercurySheen')} x1="0" y1="0" x2="1" y2="0.18">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.26" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="0.42" stopColor="#ffffff" stopOpacity="0.04" />
+          <stop offset="0.66" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="0.8" stopColor="#ffffff" stopOpacity="0.02" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
         <radialGradient id={g('well')} cx="0.5" cy="0.38" r="0.7">
           <stop offset="0" stopColor="#141b28" />
           <stop offset="1" stopColor="#06080d" />
@@ -192,7 +208,12 @@ function Liquid({ value, filled, tone, size }: LiquidProps) {
         ))}
         <path ref={back} fill={tone.back} opacity="0.32" />
         <path ref={front} fill={`url(#${g('front')})`} />
-        <path ref={crest} fill="none" stroke="#dce7ff" strokeOpacity="0.8" strokeWidth="1.4" />
+        {isMercury ? (
+          <g clipPath={`url(#${g('liq')})`}>
+            <rect x={CX - R} y={CY - R} width={R * 2} height={R * 2} fill={`url(#${g('mercurySheen')})`} />
+          </g>
+        ) : null}
+        <path ref={crest} fill="none" stroke={tone.crest} strokeOpacity="0.8" strokeWidth="1.4" />
       </g>
 
       {/* the number: drawn twice — light above the surface, dark inside the liquid */}
