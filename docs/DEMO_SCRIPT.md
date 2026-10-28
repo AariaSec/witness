@@ -58,6 +58,13 @@ instead of chasing real network exfiltration, which the same pass
 explicitly recommended against). A real Muse Code session hit it on the
 first attempt; PR #4 is now the merge-gate beat's lead red example. Full
 story: `docs/NUMBERS.md`'s "third real-agent proof" section.
+(7) A seventh pass (2026-10-28): two new real-data console visuals built
+this week — Divergence Flow and the Blast Radius 3D scene — replace the
+Flagship beat's plain timeline pull-back (0:35–1:05 below); capture
+checklist updated to match. No other beat changed: the hook, tamper
+test, generalization, merge-gate, honesty, and close beats are unchanged
+from pass (6) and still reflect current reality (verified against the
+live repo state, not just re-read).
 
 ---
 
@@ -143,10 +150,17 @@ also trimmed to drop the same editorializing.*
 
 ## 0:35–1:05 — Flagship proof (Muse Code), zoomed out
 
-**Visual:** same console, same bundle as the hook — now pull back to the
-full timeline: the agent (Meta's own Muse Code, real hosted model, real
-API key) fetching a decoy webhook endpoint, the independent marker
-service catching the read, the file-write events, the signed receipt.
+**Visual (updated 2026-10-28 — two new real-data visuals built this week
+now replace the plain timeline pull-back):** same console, same bundle
+as the hook, Overview tab (the console's default view as of today's
+Overview/Full-evidence split — no extra click needed). First the
+**Divergence Flow** — the agent's claimed path and the recorder's
+observed path running side by side, visibly splitting apart at the exact
+seq the decoy read fires. Then a hard cut to the **Blast Radius** 3D
+scene — the real process tree, the decoy-net node glowing on the
+timeline, built entirely from `ppid`/`pid`/`peer_pid` fields already in
+the bundle (no synthetic geometry — see `console/src/lib/blastRadius.ts`
+for exactly which fields drive which node).
 
 **Voiceover:**
 > witness is an independent recorder. It never reads the agent's prompts
@@ -159,6 +173,14 @@ service catching the read, the file-write events, the signed receipt.
 
 **On-screen number:** "marker_read + mismatch — both independently caught"
 (traces to `runs/frozen/muse-real-agent-proof-20261027-011548-7dca/`)
+
+**Why these two replace the old plain-timeline shot:** the Divergence
+Flow visualizes the exact claim in the voiceover — "its claim log never
+mentioned either file" — as a literal fork in two paths, not a sentence
+a viewer has to take on faith. The Blast Radius scene is the single most
+visually distinct shot in the whole video; it earns its 10-15 seconds on
+that alone. Both are driven by the same bundle already named on screen
+— no new artifact, no new claim, same proof, better visualization.
 
 ---
 
@@ -324,6 +346,14 @@ it's already solved for everything.*
 - [ ] Re-confirm both console deep links load clean on the LIVE deployed
       URL (not localhost) — `?bundle=bundles/muse-real-agent-proof.jsonl`
       and `?bundle=bundles/claude-real-agent-proof.jsonl`.
+- [ ] Flagship beat (updated 2026-10-28): screen-record the Divergence
+      Flow replaying on the muse-real-agent-proof bundle (Overview tab,
+      default view) through the exact seq the paths split, then the
+      Blast Radius 3D scene on the same bundle with the stop/decoy-net
+      node visible and glowing. Both components ship with their own
+      real-data tests (`console/tests/divergence.test.ts`,
+      `console/tests/blastRadius.test.ts`) — no capture-time setup beyond
+      loading the bundle and letting replay run.
 - [ ] Screen-record the tamper-test flip in real time (don't fake the
       transition — it has to actually compute).
 - [ ] Screen-record PR #1 and PR #4's Actions tab live, scrolled to the
