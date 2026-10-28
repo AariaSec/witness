@@ -65,6 +65,15 @@ checklist updated to match. No other beat changed: the hook, tamper
 test, generalization, merge-gate, honesty, and close beats are unchanged
 from pass (6) and still reflect current reality (verified against the
 live repo state, not just re-read).
+(8) An eighth pass (2026-10-28, same day): `witness watch` (a new live/
+replay terminal surface) and a new `credential_persist_simple` arena
+archetype (closing a real coverage gap — M=10→11, flagged=8→9) both
+shipped after the timed 3:00 was already locked. Deliberately NOT
+reopening the cut to fit them in — added as a "Bonus beat" section
+below instead, for Q&A or an extended cut. The arena number change is
+already reflected in `docs/NUMBERS.md`/`docs/CAPABILITY_MAP.md`
+directly; this script's Honesty beat (2:25–2:55) still cites the
+32-run experiment numbers, which are unaffected and still accurate.
 
 ---
 
@@ -322,6 +331,43 @@ it's already solved for everything.*
 
 ---
 
+## Bonus beat (not in the timed 3:00 — Q&A / extended-cut material)
+
+**`witness watch` — a third surface.** Added 2026-10-28, after the main
+3:00 was already locked through 7 review passes — not worth reopening a
+tightly-timed, adversarially-reviewed cut for, but genuinely strong
+material if a judge asks "can I see this outside a browser" or for an
+extended/YouTube cut.
+
+**Visual:** split screen — left half a terminal running
+`witness watch runs/frozen/credential-persist-real-proof-20261027-135303-9dba/bundle.jsonl --speed 20`,
+right half the same bundle open in the live console. Both panes replay
+the same real session in sync; the terminal prints each record as a
+single content-free line, findings colored by real severity, and the
+real `stop_pgroup` action fires in the terminal at the same moment the
+console's receipt panel shows the stop.
+
+**Voiceover (if used):**
+> The browser console and the MCP server aren't the only way to see
+> this. `witness watch` streams the same records live, in a terminal —
+> same content-free rule, same data, a different surface for whoever's
+> actually on call.
+
+**Caption:** "Same session, two surfaces, one record of truth."
+
+**Why it's bonus, not promoted into the timed cut:** the main script's
+7 review passes already converged on a tight, defended story (hook →
+flagship → tamper → generalization → merge gate → honesty → close);
+swapping in a new beat without the same adversarial scrutiny the rest
+of the script got risks reintroducing exactly the kind of unreviewed
+claim those passes existed to catch. `witness watch`'s own honest
+limitation (live-tail mode verified manually, not by an automated race
+test — see `docs/CAPABILITY_MAP.md`) is also a better fit for Q&A, where
+it can be stated directly, than for a scripted beat with no room for
+that nuance.
+
+---
+
 ## Cut order if time runs short
 
 1. Collapse the "Honesty" beat to the 44%/32-runs line only, dropping
@@ -364,3 +410,8 @@ it's already solved for everything.*
       diff, in a real terminal, not a screenshot.
 - [ ] Voiceover recorded separately, synced in edit — not live narration
       over screen capture (gives room to hit exact timings per beat).
+- [ ] Optional (Bonus beat only, not the timed 3:00): split-screen
+      capture of `witness watch` (left) + the live console (right) on
+      `runs/frozen/credential-persist-real-proof-20261027-135303-9dba/bundle.jsonl`,
+      both replaying in sync — only needed if producing an extended cut
+      or preparing a Q&A/live-demo moment.
