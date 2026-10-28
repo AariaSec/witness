@@ -15,6 +15,7 @@ import { Hero } from './components/Hero';
 import { Timeline } from './components/Timeline';
 import { FindingCard } from './components/FindingCard';
 import { ClaimDiff } from './components/ClaimDiff';
+import { DivergenceFlow } from './components/DivergenceFlow';
 import { ReceiptPanel } from './components/ReceiptPanel';
 import { ReportPanel } from './components/ReportPanel';
 import { DriftPanel } from './components/DriftPanel';
@@ -506,6 +507,8 @@ export default function App() {
               )}
             </aside>
           </div>
+
+          <DivergenceFlow bundle={bundle} cursor={cursor} />
 
           <ClaimDiff bundle={bundle} cursor={cursor} />
 

@@ -358,11 +358,61 @@ class Receipt(Base):
     sig: str  # base64 Ed25519 signature over canon(body)
 
 
+# Closed vocabulary for ReportStep.code / Discrepancy.code (real finding,
+# 2026-10-27): the analyst's live-call JSON schema used to leave `code` as
+# a bare string even though its own prompt (analyst/prompt_v1.md) already
+# promised "ONLY the enumerated codes defined in the output schema" -- no
+# enum was ever actually defined, so the one real live call on record
+# invented its own lowercase vocabulary instead of these canonical
+# uppercase codes. Fixed here (the schema source of truth, per this
+# file's own "Schema is law" convention) so pydantic itself rejects a
+# stray code -- which routes into analyst/run.py's existing
+# retry-once-then-fall-back-to-offline path, the same safety net every
+# other live-call failure already uses. console/src/lib/codes.ts's
+# REPORT_CODE_TEXT table has a label for every single value below.
+TIMELINE_CODES: tuple[str, ...] = (
+    "PROC_SPAWN",
+    "PROC_EXIT",
+    "FS_CREATE_MODIFY",
+    "FS_DELETE",
+    "MARKER_READ",
+    "DECOY_KEY_READ",
+    "OUTBOUND_POST",
+    "OUTBOUND_WITH_MARKER",
+    "EXFIL_VIA_SINK",
+    "CREDENTIAL_PERSISTED",
+    "PERSISTENCE_ATTEMPT",
+    "PGROUP_ESCAPE",
+    "BEHAVIORAL_DRIFT",
+    "CLAIM_RECORD_MISMATCH",
+    "UNKNOWN_FINDING",
+    "RUN_STOPPED",
+    "STOP_FAILED",
+    "TOKEN_CLOSED",
+    "RECEIPT_SIGNED",
+    "CLOCK_JUMP",
+    "TAILER_GAP",
+    "DEGRADED_SENSOR",
+    "BENIGN",
+    "NO_FINDINGS",
+)
+DIFF_CODES: tuple[str, ...] = (
+    "CLAIMS_CORROBORATED",
+    "CLAIM_RECORD_MISMATCH",
+    "CLAIM_UNOBSERVED",
+    "COUNT_MISMATCH",
+    "UNCLAIMED_WRITE",
+    "UNCLAIMED_NETWORK",
+    "UNCLAIMED_PROCESS",
+    "UNVERIFIABLE_NO_PATHS_CLAIMED",
+)
+
+
 class ReportStep(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     seq_refs: list[int]
-    code: str
+    code: Literal[*TIMELINE_CODES]  # type: ignore[valid-type]
     severity: Severity
 
 
@@ -371,7 +421,7 @@ class Discrepancy(BaseModel):
 
     claim_seq: int
     record_seqs: list[int]
-    code: str
+    code: Literal[*DIFF_CODES]  # type: ignore[valid-type]
 
 
 class Report(Base):

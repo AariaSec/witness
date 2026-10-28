@@ -583,7 +583,7 @@ via Baseten's OpenAI-compatible endpoint.
 exfil` recording, plus `live_report.json`, the actual response from a real
 call to `meta-models/muse-spark-open-1026`, 2026-10-26). Verified by hand
 (not in the automated gate — see below for why): `analyst_status="ok"`,
-schema-valid on the first attempt, `confidence=0.91`, correctly cited
+schema-valid on the first attempt, `confidence=0.88`, correctly cited
 `marker_read` and `outbound_post` findings with their exact evidence
 `seq`s, wall time ~10-15s. This is the evidence that the project
 genuinely, meaningfully uses a Meta open-weight model — not just a wired
@@ -620,7 +620,7 @@ policy: PASS (stop findings: 0)
 analyst: status=ok confidence=0.6 codes=[PROC_SPAWN, FS_WRITE, ASSISTANT_CLAIM, MARKER_READ, MISMATCH, NO_OUTBOUND_POST] (advisory narrative only — never affects pass/fail; the policy/chain/signature checks above are the whole gate decision)
 ```
 `analyst_status="ok"`, schema-valid, `confidence=0.6` (lower than
-Baseten's 0.91 on a different bundle — not compared directly, different
+Baseten's 0.88 on a different bundle — not compared directly, different
 model, different run, no claim either is "better"), correctly cited all
 six real finding/event codes with no fabrication. Reproducible by
 anyone with a Meta Model API key: same command, same bundle, same flag.

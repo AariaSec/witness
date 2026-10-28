@@ -25,6 +25,8 @@ from witness.analyst.client import LLMClient, LLMClientError
 from witness.canon import sha256_hex
 from witness.ledger import read_ledger
 from witness.models import (
+    DIFF_CODES,
+    TIMELINE_CODES,
     Discrepancy,
     Finding,
     FindingKind,
@@ -34,12 +36,26 @@ from witness.models import (
     Severity,
 )
 
+# `code` enums live in models.py (TIMELINE_CODES/DIFF_CODES) -- the schema
+# source of truth, per that file's own "Schema is law" convention -- and
+# are imported here, not duplicated. Real finding (2026-10-27, while
+# adding console visuals driven by a real live report): this schema used
+# to leave `code` as a bare `{"type": "string"}` even though
+# analyst/prompt_v1.md already told the model to use "ONLY the enumerated
+# codes defined in the output schema." No enum was ever actually defined,
+# so the one real live call on record (2026-10-26) reasonably invented its
+# own lowercase snake_case vocabulary instead of the canonical uppercase
+# codes console/src/lib/codes.ts's REPORT_CODE_TEXT table knows -- not a
+# hallucination, a schema gap. Now enforced on both sides: this dict feeds
+# the live prompt, and models.py's ReportStep/Discrepancy.code are typed
+# Literal[*the same tuples], so a stray code fails pydantic validation and
+# routes into the existing retry-once-then-fall-back-to-offline path.
 _LIVE_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
     "required": ["summary_codes", "timeline", "reported_vs_recorded", "confidence"],
     "properties": {
-        "summary_codes": {"type": "array", "items": {"type": "string"}},
+        "summary_codes": {"type": "array", "items": {"enum": list(TIMELINE_CODES)}},
         "timeline": {
             "type": "array",
             "items": {
@@ -47,7 +63,7 @@ _LIVE_OUTPUT_SCHEMA: dict[str, object] = {
                 "required": ["seq_refs", "code", "severity"],
                 "properties": {
                     "seq_refs": {"type": "array", "items": {"type": "integer"}},
-                    "code": {"type": "string"},
+                    "code": {"enum": list(TIMELINE_CODES)},
                     "severity": {"enum": ["info", "warn", "stop"]},
                 },
             },
@@ -60,7 +76,7 @@ _LIVE_OUTPUT_SCHEMA: dict[str, object] = {
                 "properties": {
                     "claim_seq": {"type": "integer"},
                     "record_seqs": {"type": "array", "items": {"type": "integer"}},
-                    "code": {"type": "string"},
+                    "code": {"enum": list(DIFF_CODES)},
                 },
             },
         },

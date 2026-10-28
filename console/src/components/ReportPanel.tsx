@@ -9,6 +9,7 @@ import { traced } from '../lib/derive';
 import { shortHash } from '../lib/format';
 import { C } from '../lib/tokens';
 import { SeqChip, TraceNumber } from './TraceTooltip';
+import { ConfidenceGauge } from './ConfidenceGauge';
 
 const SEV_TONE: Record<string, string> = { stop: C.stop, warn: C.warn, info: C.info };
 
@@ -42,24 +43,35 @@ export function ReportPanel({ bundle, cursor }: { bundle: LoadedBundle; cursor: 
         </div>
         <SeqChip seq={r.seq} />
       </div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-4 border-b border-line-faint px-5 py-5">
+        <ConfidenceGauge report={r} t={conf} shown={shown} />
+        <div className="min-w-[180px] flex-1 space-y-2.5">
+          <div>
+            <div className="eyebrow text-fg-4">Analyst</div>
+            {r.model_id.includes('/') ? (
+              <div className="mt-1 font-mono text-[10.5px] text-fg-4">{r.model_id.slice(0, r.model_id.lastIndexOf('/') + 1)}</div>
+            ) : null}
+            <div className="break-all font-mono text-[13.5px] font-medium text-fg">{r.model_id.slice(r.model_id.lastIndexOf('/') + 1)}</div>
+          </div>
+          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-[11px] text-fg-4">
+            <span>prompt</span>
+            <span className="text-fg-2">{shortHash(r.prompt_version, 4)}</span>
+            <span>tool calls</span>
+            <span>
+              {shown ? <TraceNumber t={tools} title="Analyst tool calls" format={(v) => <span className="text-fg-2">{v}</span>} /> : '—'}
+            </span>
+            <span>confidence</span>
+            <span>
+              {shown ? <TraceNumber t={conf} title="Analyst confidence" format={(v) => <span className="text-fg-2">{v.toFixed(2)}</span>} /> : '—'}
+            </span>
+          </div>
+          <p className="text-[11.5px] leading-snug text-fg-4">Advisory only — the analyst never affects pass/fail. The chain, signature and policy checks are the whole gate.</p>
+        </div>
+      </div>
       {!shown ? (
         <div className="px-5 py-6 text-[12.5px] text-fg-4">Report is appended after the receipt — scrub to the end.</div>
       ) : (
         <div className="animate-fade-in px-5 py-4">
-          <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] text-fg-4">
-            <span>
-              model <span className="text-fg-2">{r.model_id}</span>
-            </span>
-            <span>
-              prompt <span className="text-fg-2">{shortHash(r.prompt_version, 4)}</span>
-            </span>
-            <span>
-              tool calls <TraceNumber t={tools} title="Analyst tool calls" format={(v) => <span className="text-fg-2">{v}</span>} />
-            </span>
-            <span>
-              confidence <TraceNumber t={conf} title="Analyst confidence" format={(v) => <span className="text-fg-2">{v.toFixed(2)}</span>} />
-            </span>
-          </div>
           {offline ? (
             <div className="mb-3 rounded-md border border-line bg-bg-well/60 px-3 py-2 text-[12px] text-fg-3">
               {r.analyst_status === 'offline'
