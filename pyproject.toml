@@ -16,6 +16,7 @@ dependencies = [
     "watchdog>=4",
     "cryptography>=42",
     "pyyaml>=6",
+    "rich>=13",
 ]
 
 [project.optional-dependencies]

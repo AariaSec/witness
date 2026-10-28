@@ -181,6 +181,35 @@ key at all; `provider="baseten"` or `provider="meta"` runs a live model
 call, falling back to the offline template on any failure, same
 retry/fallback guarantee as the CLI.
 
+## Use it from a terminal
+
+A third surface, alongside the browser console and the MCP server: a
+live or replayed feed of a session's records, for a human operator
+watching in their own terminal.
+
+```
+witness watch runs/frozen/muse-real-agent-proof-20261027-011548-7dca/bundle.jsonl --speed 50
+```
+
+```
+   0.002s #0 manifest run=20261027-011548-7dca
+   ...
+  15.940s #12 marker_read pid=27210
+  15.940s #13 WARN finding=marker_read evidence=[12]
+  28.564s #20 WARN finding=mismatch evidence=[2, 3, 9, 10, 15, 16, 17]
+  28.630s #21 receipt signed key=Flnpc3We8Q… stop=not_needed
+```
+
+`bundle.jsonl` (or `--replay`) replays at real recorded pacing, sped up
+by `--speed`; a bare `ledger.jsonl` from an in-progress `witness record`
+run is tailed live, ending when the signed receipt appears — verified
+against a real in-progress recording, not just a finished bundle: a real
+`credential_persist` session's two `STOP` findings and their `stop_pgroup`
+actions streamed live, in order, as the file was being written. Same
+content-free rule as every other surface (`src/witness/watch.py`'s
+`line_for` renders only existing digest/enum/count/path fields) — see
+`tests/unit/test_watch.py` and `tests/integration/test_watch_cli.py`.
+
 ## Structure
 
 - `src/witness/` — the recorder, listeners, detectors, ledger, bundler, CLI

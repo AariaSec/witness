@@ -54,7 +54,7 @@ from witness.config import RecordConfig
 from witness.detectors import DetectorState
 from witness.detectors import evaluate as detectors_evaluate
 from witness.gittree import compute_file_digests, git_commit_sha, tree_digest_of
-from witness.ledger import Ledger, read_ledger
+from witness.ledger import Ledger, _RecordAdapter, read_ledger
 from witness.listeners.fswatch import FsWatcher
 from witness.listeners.marker import MarkerService
 from witness.listeners.procwatch import ProcWatcher
@@ -807,6 +807,71 @@ def demo() -> None:
 
     bundle_path = run_demo()
     typer.echo(f"demo bundle: {bundle_path}")
+
+
+def _watch_replay(records: list, speed: float, console: object) -> None:
+    from witness.watch import line_for
+
+    prev_t: float | None = None
+    for rec in records:
+        if prev_t is not None and speed > 0:
+            delay = (rec.ts_mono - prev_t) / speed
+            if delay > 0:
+                time.sleep(delay)
+        prev_t = rec.ts_mono
+        console.print(line_for(rec))  # type: ignore[attr-defined]
+
+
+def _watch_tail(ledger_path: Path, console: object, poll_s: float = 0.2) -> None:
+    from witness.watch import line_for
+
+    seen = 0
+    while True:
+        if ledger_path.exists():
+            with open(ledger_path, encoding="utf-8") as fh:
+                lines = [ln.strip() for ln in fh if ln.strip()]
+            for line in lines[seen:]:
+                rec = _RecordAdapter.validate_json(line)
+                console.print(line_for(rec))  # type: ignore[attr-defined]
+                if rec.kind == Kind.receipt:
+                    return
+            seen = len(lines)
+        time.sleep(poll_s)
+
+
+@app.command()
+def watch(
+    path: Path = typer.Argument(
+        ..., help="a finished bundle.jsonl (replay) or a live run_dir's ledger.jsonl (tail)"
+    ),
+    speed: float = typer.Option(
+        1.0, help="replay-pace multiplier (ignored in live-tail mode; 0 = no delay, print instantly)"
+    ),
+    replay: bool = typer.Option(
+        False,
+        "--replay",
+        help="force recorded-pace replay even for a ledger.jsonl that might still be live",
+    ),
+) -> None:
+    """Live terminal feed of a session's records as they happen -- the
+    third interaction surface alongside the web console (browser) and the
+    MCP server (agent); this one is for a human operator watching a
+    session in their own terminal. `bundle.jsonl` (or `--replay`) replays
+    at real recorded `ts_mono` pacing, optionally accelerated by --speed;
+    a bare `ledger.jsonl` is tailed live via the same record parser
+    `read_ledger` uses (`witness.ledger._RecordAdapter`), ending when the
+    signed `receipt` record appears. Content-free: `witness.watch.line_for`
+    renders only existing digest/enum/count/path fields, never raw
+    prompt/response text."""
+    from rich.console import Console
+
+    console = Console()
+    target = Path(path)
+
+    if replay or target.name == "bundle.jsonl":
+        _watch_replay(read_ledger(target), speed, console)
+    else:
+        _watch_tail(target, console)
 
 
 @app.command()
