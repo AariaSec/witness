@@ -28,9 +28,13 @@ dev = [
     "types-PyYAML>=6",
     "types-psutil>=6",
 ]
+mcp = [
+    "mcp>=2",
+]
 
 [project.scripts]
 witness = "witness.cli:app"
+witness-mcp-server = "witness.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -109,6 +109,45 @@ on GitHub's own infrastructure, not simulated: [PR #1, green](https://github.com
 (the decoy-credential catch) — both link straight into the live console
 from their own CI step summary.
 
+## Use it from a coding agent (MCP)
+
+`witness verify`'s logic is also exposed as three read-only MCP tools
+(`witness_verify_bundle`, `witness_list_findings`,
+`witness_check_tree_coverage`) over a local stdio server — ask Muse Code
+(or any MCP client) to check a receipt in plain conversation instead of
+running the CLI by hand. Deliberately NOT a hosted connector: no auth, no
+public distribution, no platform review — install the `mcp` extra and
+point an agent's `mcpServers` config at it:
+
+```bash
+pip install -e ".[mcp]"
+```
+
+```json
+{
+  "mcpServers": {
+    "witness": {
+      "transport": "stdio",
+      "command": "/absolute/path/to/witness/.venv/bin/witness-mcp-server",
+      "args": []
+    }
+  }
+}
+```
+
+**Live demo:** with that configured, ask Muse Code directly —
+
+> "Use the witness tool to check whether
+> `runs/frozen/credential-persist-real-proof-20261027-135303-9dba/bundle.jsonl`
+> passes its merge gate, and list any findings."
+
+— and it calls `witness_verify_bundle` + `witness_list_findings` itself,
+getting back the real, signed, chain-verified result (`policy: FAIL`,
+the real `credential_persist` finding) rather than anything it could
+make up. Verified end-to-end: `tests/integration/test_mcp_server_protocol.py`
+spawns the real server and talks to it over real stdio JSON-RPC via the
+official MCP client SDK — the same path any real MCP client uses.
+
 ## Structure
 
 - `src/witness/` — the recorder, listeners, detectors, ledger, bundler, CLI
@@ -153,7 +192,7 @@ of three — see the "Why" section above):
   `docs/NUMBERS.md`'s flagship proof run.
 - **Two independent, live Meta model proofs**: Muse Spark Open
   (`meta-models/muse-spark-open-1026` via Baseten) correctly analyzed a
-  real bundle — `analyst_status="ok"`, `confidence=0.91` — and, as a
+  real bundle — `analyst_status="ok"`, `confidence=0.88` — and, as a
   second, first-party proof, a direct call to **Meta's own hosted Model
   API** (`witness verify --with-analyst --analyst-provider meta`,
   `muse-spark-1.3`, no third-party host) worked on the first attempt
