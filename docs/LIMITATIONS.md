@@ -103,7 +103,7 @@ what's solid versus what's a placeholder.
   arena level, not just by the two point proofs above: the full 10-archetype
   frozen seed set was re-run 2026-10-28 (`runs/frozen/arena-20261028/`,
   same `witness-private/generator/seeds.yaml`, unedited) and now scores
-  `flagged=10, missed=0` — `escape_simple` correctly fires
+  `M=10, flagged=8, missed=0` — `escape_simple` correctly fires
   `pgroup_escape` alongside `marker_read`/`outbound_post`. See
   `docs/NUMBERS.md`'s arena section for the honest disclosure of what else
   that re-run surfaced (an unexpected `drift` finding on
