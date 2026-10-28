@@ -70,6 +70,27 @@ happened.
 
 ## Quickstart
 
+**One command, one real session, end to end:**
+
+```
+./scripts/judge_quickstart.sh
+```
+
+Creates a venv if needed, generates a signing key, records a real
+`sim_agent` session (decoy key read → decoy value exfiltrated), runs
+`witness verify` (the actual merge-gate check, real exit code — `2` means
+a real stop-severity finding fired), and opens the already-hosted
+[live console](https://aariasec.github.io/witness/) so you can drag the
+freshly-printed `bundle.jsonl` onto it yourself. No API key, no network
+except the recorder's own loopback marker/sink, nothing uploaded (parsed
+client-side in your own tab). Measured on the owner's machine: 1.6s with
+an existing `.venv`, 12.1s from a completely fresh clone (includes
+`pip install -e .`) — verified by
+`tests/integration/test_judge_quickstart.py`, which runs this exact
+script, not a reimplementation of it.
+
+Or by hand:
+
 ```
 pip install -e .
 witness keygen
