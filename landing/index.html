@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>witness — an independent, content-free recorder for AI coding agents</title>
+<style>
+  :root{--bg:#0a0b0d;--panel:#141518;--panel2:#1c1e22;--line:#2a2d33;--ink:#e8eaed;--muted:#9aa0a6;
+    --orange:#FF9F0A;--green:#34d399;--red:#ff5d5d;--blue:#60a5fa;--purple:#8b5cf6}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1100px 600px at 50% -5%,rgba(255,159,10,.08),transparent 60%),var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:40px 26px 80px}
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+  .top{display:flex;align-items:center;gap:12px}
+  .logo{width:30px;height:30px;border-radius:8px;border:2px solid var(--orange);display:grid;place-items:center}
+  .logo i{width:9px;height:9px;border-radius:50%;background:var(--orange)}
+  .brand{font-weight:800;font-size:20px}.brand .w{color:var(--orange)}
+  .pill{margin-left:auto;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 11px}
+  h1{font-size:46px;line-height:1.05;letter-spacing:-.02em;margin:34px 0 10px;font-weight:800}
+  h1 .g{background:linear-gradient(90deg,#FF9F0A,#ffcf6b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:#cdd2d8;font-size:18px;max-width:70ch}
+  .ctas{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0 6px}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:11px 18px;font-weight:700;font-size:14px;text-decoration:none;border:1px solid var(--line)}
+  .btn.p{background:var(--orange);color:#1a1300;border-color:var(--orange)}
+  .btn.s{background:var(--panel);color:var(--ink)}
+  .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;color:var(--muted);font-size:12.5px}
+  .meta span{border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);margin:42px 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px}
+  .card .ic{font-size:20px}
+  .card h3{margin:8px 0 6px;font-size:16.5px}
+  .card p{margin:0;color:var(--muted);font-size:13.5px}
+  .card .tag{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--blue);margin-top:8px;display:block}
+  .nums{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:4px}
+  @media(max-width:760px){.nums{grid-template-columns:repeat(2,1fr)}}
+  .num{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+  .num b{display:block;font-size:26px;color:var(--orange);font-weight:800}
+  .num span{font-size:12px;color:var(--muted)}
+  .foot{margin-top:40px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><i></i></div>
+    <div class="brand"><span class="w">witness</span></div>
+    <span class="pill">built this week on Meta Muse · part of AariaSec</span>
+  </div>
+
+  <h1>Does the agent’s report match<br><span class="g">what actually happened?</span></h1>
+  <p class="sub">witness is an independent, <b>content-free</b> runtime recorder for AI coding agents. Two observers watch every
+    session — the agent’s own report, and what the OS actually did — hash-chained into a signed ledger. It catches an agent
+    lying about its own work, and it never reads a prompt, a response, or a line of your code.</p>
+
+  <div class="ctas">
+    <a class="btn p" href="../?bundle=bundles/muse-real-agent-proof.jsonl">▶ Open the live console</a>
+    <a class="btn s" href="../record/">🪐 Explore the solar system</a>
+    <a class="btn s" href="https://github.com/AariaSec/witness/pull/4">🐙 See the merge-gate PRs</a>
+  </div>
+  <div class="meta"><span>Ed25519-signed</span><span>hash-chained</span><span>content-free (RULE 1)</span><span>no login · verify in your browser</span><span>local-stdio MCP connector</span></div>
+
+  <!-- FEATURES -->
+  <h2>What witness does</h2>
+  <div class="grid">
+    <div class="card"><div class="ic">👁️</div><h3>Two independent observers</h3><p>An OS-layer recorder of what actually happened, and a parser of the agent’s own claims — cross-checked against each other, never trusting the agent’s word.</p><span class="tag">recorder · claim-parser</span></div>
+    <div class="card"><div class="ic">🔗</div><h3>Hash-chained, signed ledger</h3><p>Every record links to the last by SHA-256 and the run is sealed with an Ed25519 receipt. Flip a single byte and verification fails — in your browser, in milliseconds.</p><span class="tag">chain · receipt · tamper-evident</span></div>
+    <div class="card"><div class="ic">🚫</div><h3>Content-free by construction</h3><p>Every record is a hash, a count, or a pid. Prompts, responses and file contents never enter the system — so it’s safe to run on code that can’t leave your machine.</p><span class="tag">RULE 1 · hash-only</span></div>
+    <div class="card"><div class="ic">🎯</div><h3>Six behavioural detectors</h3><p>marker_read, credential_persist, outbound_post, protected_write, mismatch and pgroup_escape — only a stop-severity finding blocks a merge.</p><span class="tag">warn · stop · drift</span></div>
+    <div class="card"><div class="ic">🌌</div><h3>Divergence &amp; Blast Radius</h3><p>Replays the session in serial — the claimed path and the real path fork where they disagree — then fires a 3D shockwave over everything the process actually reached.</p><span class="tag">divergence flow · blast radius 3D</span></div>
+    <div class="card"><div class="ic">🛡️</div><h3>A real merge gate</h3><p>Runs in CI on real pull requests. A stop-severity finding fails the PR; the receipt is bound to the git tree, so an unsigned edit can’t ride through.</p><span class="tag">policy · signature · coverage</span></div>
+    <div class="card"><div class="ic">🔌</div><h3>MCP connector</h3><p>Four read-only MCP tools over local stdio — ask any agent, in plain English, to check a receipt and it calls witness itself, getting the real signed verdict.</p><span class="tag">witness_verify_bundle · …</span></div>
+    <div class="card"><div class="ic">🧠</div><h3>Meta-model analyst</h3><p>Muse Spark Open (and self-hosted Muse Glimmer) write a content-free narrative with a live confidence gauge — advisory only; chain, signature and policy are the whole gate.</p><span class="tag">Muse Spark Open · Glimmer</span></div>
+  </div>
+
+  <!-- PROVEN -->
+  <h2>Proven, measured, reproducible</h2>
+  <div class="nums">
+    <div class="num"><b>2</b><span>real agents caught<br>Muse Code &amp; Claude Code</span></div>
+    <div class="num"><b>6–19 ms</b><span>time to signal<br>vs a 500 ms budget</span></div>
+    <div class="num"><b>0</b><span>false alarms across<br>11 attack archetypes</span></div>
+    <div class="num"><b>32</b><span>real sessions run —<br>found 2 bugs in itself</span></div>
+  </div>
+
+  <div class="foot">
+    Everything here is live and verifiable, no login — <a class="mono" style="color:var(--blue)" href="../">the console</a>,
+    <a class="mono" style="color:var(--blue)" href="../record/">the record</a>, and the real
+    <a class="mono" style="color:var(--blue)" href="https://github.com/AariaSec/witness/pull/1">green</a> /
+    <a class="mono" style="color:var(--blue)" href="https://github.com/AariaSec/witness/pull/4">red</a> merge-gate PRs.
+    witness is part of <b>AariaSec</b> — AI Attack Surface Management.
+  </div>
+</div>
+</body>
+</html>
