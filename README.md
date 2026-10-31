@@ -108,6 +108,30 @@ then drag that `bundle.jsonl` onto the page (or use the file picker, or
 pass `?bundle=<path>`). No API key required for any of this — the console
 also ships with its own bundled demo bundle pre-loaded on first open.
 
+## Run the live analyst (optional, needs your own key)
+
+Nothing above needs a key. The analyst pass adds a plain-language report from
+a Meta model; it is advisory only and never changes a verdict or exit code.
+To run it yourself, supply your own key — judges and reviewers do not need
+ours, and no key is ever committed to this repo.
+
+```
+cp .env.example .env          # then edit .env and fill in ONE key
+set -a; source .env; set +a   # the CLI reads the shell environment, not .env
+witness verify <bundle.jsonl> --with-analyst --analyst-provider meta
+```
+
+| `--analyst-provider` | Environment variable | Model |
+|---|---|---|
+| `meta` | `META_API_KEY` | Muse Spark 1.3 via the Meta Model API |
+| `baseten` | `BASETEN_API_KEY` | Muse Spark Open (open-weight) |
+| `fireworks` | `FIREWORKS_API_KEY` | same open-weight model, second host |
+
+With no key set the command still succeeds and prints the offline template
+(`analyst_status="offline"`). The recorded runs in `runs/frozen/` include the
+analyst output from our own live calls, so you can inspect real model output
+without running anything.
+
 ## Use it as a merge gate
 
 A committed `bundle.jsonl` can gate a pull request, not just be viewed
