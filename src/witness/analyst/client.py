@@ -28,6 +28,7 @@ passing anything else.
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -49,6 +50,7 @@ DEFAULT_FIREWORKS_MODEL = "accounts/fireworks/models/muse-spark-open-1026"
 DEFAULT_FIREWORKS_KEY_PATH = Path.home() / ".config" / "aariasec" / "fireworks_api_key"
 
 DEFAULT_META_MODEL_URL = "https://api.meta.ai/v1/chat/completions"
+DEFAULT_GLIMMER_MODEL = "glimmer"  # alias registered by scripts/glimmer_modal.py (Muse-Glimmer-30B GGUF)
 # muse-spark-1.3 is the hosted (not open-weight) Meta model -- a genuinely
 # different artifact from Baseten/Fireworks's muse-spark-open, which isn't
 # on the Model API at all. Covers the "Model API" half of "meaningfully
@@ -231,9 +233,34 @@ class MetaModelClient(_OpenAICompatibleClient):
         super().__init__("Meta Model API", api_key, key_path, base_url, model, max_tokens, timeout_s)
 
 
+class GlimmerClient(_OpenAICompatibleClient):
+    """Muse Glimmer (Meta's open-weight 30B model) served on our OWN hardware:
+    a llama.cpp OpenAI-compatible server on a Modal A10G GPU
+    (`scripts/glimmer_modal.py`). No API key: the endpoint URL is supplied via
+    `WITNESS_GLIMMER_URL` (e.g. `https://<workspace>--aariasec-glimmer-serve.modal.run/v1/chat/completions`)
+    or the `base_url` argument. A cold start can take minutes (weights load
+    onto the GPU), so the timeout is generous; on any failure the analyst
+    falls back to the offline template like every other provider."""
+
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str = DEFAULT_GLIMMER_MODEL,
+        max_tokens: int = 6000,
+        timeout_s: float = 300.0,
+    ) -> None:
+        url = base_url or os.environ.get("WITNESS_GLIMMER_URL", "")
+        if not url:
+            raise LLMClientError("no Glimmer endpoint: set WITNESS_GLIMMER_URL")
+        if not url.rstrip("/").endswith("/chat/completions"):
+            url = url.rstrip("/") + "/v1/chat/completions" if not url.rstrip("/").endswith("/v1") else url.rstrip("/") + "/chat/completions"
+        super().__init__("Glimmer (Modal)", "none", Path("/dev/null"), url, model, max_tokens, timeout_s)
+
+
 __all__ = [
     "BasetenClient",
     "FireworksClient",
+    "GlimmerClient",
     "LLMClient",
     "LLMClientError",
     "MetaModelClient",

@@ -741,3 +741,22 @@ validate_bundle(p)  # warm import
 print(sorted(timeit.repeat(lambda: validate_bundle(p), number=1, repeat=20)))
 "
 ```
+
+
+## Live captures for the demo video (2026-11-03) — Muse Spark 1.3 and Muse Glimmer 30B
+
+Two more real analyst calls, captured on the same real bundle
+(`runs/frozen/analyst-live-proof-20261026-145221-6150/bundle.jsonl`, 19 records,
+policy FAIL: 1 stop finding) so the demo video shows live Meta model calls:
+
+| Provider | Model / where it runs | Result | Wall time | Frozen artifact |
+|---|---|---|---|---|
+| `meta` | Muse Spark 1.3, Meta Model API (first-party) | `analyst_status=ok`, confidence 0.9 | 24.1 s | `runs/frozen/live-capture-meta-20261103/output.json` |
+| `glimmer` | Muse Glimmer 30B (open-weight, Q4_K_M GGUF) on our own Modal A10G GPU via llama.cpp (`scripts/glimmer_modal.py`) | `analyst_status=ok`, confidence 0.85 | 58.0 s | `runs/frozen/live-capture-glimmer-20261103/output.json` |
+
+Honest notes: both calls are advisory and never change the pass/fail result.
+The Glimmer endpoint scales to zero when idle (cold start ~70 s here). Failed
+attempts are real and expected: the first Glimmer attempt timed out at 54 s and
+fell back to the offline template (`analyst_status=offline`); only the first
+`status=ok` result is kept as the frozen artifact. Earlier capture attempts of
+the Meta API also fell back at 59 s and 142 s before one succeeded.

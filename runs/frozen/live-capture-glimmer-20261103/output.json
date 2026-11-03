@@ -1,0 +1,11 @@
+{
+ "cmd": "witness verify bundle.jsonl --with-analyst --analyst-provider glimmer",
+ "lines": [
+  "OK: 19 records, findings={'marker_read': 1, 'outbound_post': 1}, receipt_ok=True",
+  "policy: FAIL (stop findings: 1)",
+  "analyst: status=ok confidence=0.85 codes=[PROC_SPAWN, FS_CREATE_MODIFY, MARKER_READ, OUTBOUND_POST, OUTBOUND_WITH_MARKER, RUN_STOPPED, TOKEN_CLOSED, RECEIPT_SIGNED] (advisory narrative only \u2014 never affects pass/fail; the policy/chain/signature checks above are the whole gate decision)"
+ ],
+ "wall_ms": 58003,
+ "exit": 2,
+ "captured_at": "2026-11-03T15:23:19-08:00"
+}

@@ -87,7 +87,19 @@ def _resolve_analyst_client(provider: str = "baseten") -> LLMClient | None:
     own machine already has it), and returns `None` (the offline
     template) rather than raise if neither is available or the provider
     name is unknown — this flag must never be the reason a run fails."""
-    from witness.analyst.client import BasetenClient, FireworksClient, LLMClientError, MetaModelClient
+    from witness.analyst.client import (
+        BasetenClient,
+        FireworksClient,
+        GlimmerClient,
+        LLMClientError,
+        MetaModelClient,
+    )
+
+    if provider == "glimmer":
+        try:
+            return GlimmerClient()  # endpoint from WITNESS_GLIMMER_URL; no key
+        except LLMClientError:
+            return None
 
     env_var = {
         "baseten": "BASETEN_API_KEY",

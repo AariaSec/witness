@@ -33,6 +33,7 @@ in two places only, and every model called at runtime is a Meta model.
 |---|---|---|---|
 | Muse Spark Open (`meta-models/muse-spark-open-1026`, open-weight) | Baseten (`--analyst-provider baseten`) | Analyst pass: writes an advisory plain-language verdict and a confidence score for a recorded bundle. It never changes a pass/fail result. Also runs inside the merge gate on real GitHub runners ([PR #3](https://github.com/AariaSec/witness/pull/3)). | `runs/frozen/analyst-live-proof-*`, `docs/NUMBERS.md` |
 | Muse Spark 1.3 | Meta Model API (`--analyst-provider meta`) | The same analyst pass, called first-party. | `docs/NUMBERS.md` |
+| Muse Glimmer 30B (open-weight, Q4_K_M GGUF) | Our own Modal A10G GPU via llama.cpp (`scripts/glimmer_modal.py`; `--analyst-provider glimmer`, endpoint from `WITNESS_GLIMMER_URL`) | The same analyst pass on open weights we host ourselves. | `runs/frozen/live-capture-glimmer-*`, `docs/NUMBERS.md` |
 | Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log, never its prompts. | `runs/frozen/muse-real-agent-proof-*` |
 
 witness also ships a parser for Claude Code session logs, to show the recorder
@@ -162,8 +163,9 @@ witness verify <bundle.jsonl> --with-analyst --analyst-provider meta
 | `meta` | `META_API_KEY` | Muse Spark 1.3 via the Meta Model API |
 | `baseten` | `BASETEN_API_KEY` | Muse Spark Open (open-weight) |
 | `fireworks` | `FIREWORKS_API_KEY` | same open-weight model, second host |
+| `glimmer` | `WITNESS_GLIMMER_URL` (no key) | Muse Glimmer 30B on our own Modal GPU |
 
-A live call is not instant: in our captured runs of the Meta Model API it took about 40 s, and some attempts timed out (59 s and 142 s) and fell back to the offline template (`analyst_status="offline"`). The fallback is by design and the verdict never depends on the call.
+A live call is not instant: in our captured runs the Meta Model API took 24-40 s and Glimmer on Modal took about 58 s (plus a ~70 s cold start), and some attempts timed out (54-142 s) and fell back to the offline template (`analyst_status="offline"`). The fallback is by design and the verdict never depends on the call.
 
 With no key set the command still succeeds and prints the offline template
 (`analyst_status="offline"`). The recorded runs in `runs/frozen/` include the
@@ -322,7 +324,7 @@ of three — see the "Why" section above):
   independently caught fetching and saving a decoy credential — see
   `docs/NUMBERS.md`'s flagship proof run.
 - **A small, honestly labeled experiment** (`scripts/experiment/`, n=16 decoy-adjacent / n=16 control real Muse Code sessions): **44% touched the decoy**, controls **100% clean**, and a **0% self-report mismatch rate** — a real, slightly deflating finding: these agents did not misreport in this sample. It also surfaced two false-positive bugs in our own detectors, both fixed (`docs/LIMITATIONS.md`).
-- **Two independent live Meta model providers, four real calls on
+- **Three independent live Meta model providers, six real calls on
   record**: Muse Spark Open (`meta-models/muse-spark-open-1026` via
   Baseten) correctly analyzed a real bundle — `analyst_status="ok"`,
   `confidence=0.88` on first run (2026-10-26), re-run clean under the
