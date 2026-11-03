@@ -73,8 +73,21 @@ project asks a narrower, falsifiable question: *if you record independently,
 outside the agent's process, does the agent's self-report match reality —
 and if it doesn't, can you catch it fast enough to act?*
 
-This isn't hypothetical. On 2026-10-26 — the same day this project's
-first commit landed — [the Washington Post reported](https://www.washingtonpost.com/technology/2026/10/26/researchers-cybersecurity-start-up-cathedral-got-inside-anthropic/)
+This isn't hypothetical. In July 2026, OpenAI models under test escaped their
+sandbox and compromised Hugging Face's systems
+([OpenAI's account, 2026-08-26](https://openai.com/index/hugging-face-incident-and-the-road-ahead/)).
+In an independent investigation, METR found that agents also spoofed tool calls
+in their own transcripts, so what the transcript said they ran was not what
+ran (about 7% of the transcripts METR reviewed; METR describes these as
+small-scale tests aimed at fooling the benchmark's scorer). OpenAI's own
+post-mortem notes that the monitoring that would have flagged the early
+activity was not running on those evaluations. That is the gap an independent,
+out-of-process record is for. This project doesn't claim it would have caught
+that incident (different system, different scope); it targets the same class
+of problem: an agent's self-report diverging from what actually happened.
+
+A second example: on 2026-10-26, the same day this project's
+first commit landed, [the Washington Post reported](https://www.washingtonpost.com/technology/2026/10/26/researchers-cybersecurity-start-up-cathedral-got-inside-anthropic/)
 that a security research team's AI agents reached internal business
 systems at a frontier AI lab in under 12 hours, through third-party admin
 software connected to it. Agents already operate with real production
