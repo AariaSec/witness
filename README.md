@@ -16,6 +16,29 @@ sandbox.
 [aariasec.github.io/witness](https://aariasec.github.io/witness/)**
 — loads with a real recorded bundle pre-loaded.
 
+## What existed before vs. what was built this week
+
+| | What | In this repo? |
+|---|---|---|
+| **Existing before the event** | [AariaSec](https://aariasec.com), the founder's separate company and product (runtime AI-agent monitoring). Not part of this submission and not judged. | No. Same problem domain, no shared code (see `PROVENANCE.md`). |
+| **Built this week** | `witness`: the recorder, detectors, signed receipts, merge gate, MCP server, console and analyst pass. The full itemised list is in `NEW.md`. | Yes, all of it. First commit 2026-10-26. |
+| **Private, declared** | A private companion repo holds only the frozen seed set for the scenario arena, so nothing can be tuned against it. | No. Nothing here needs it: the arena results are recorded in `runs/frozen/`, and every other feature runs from this repo alone. |
+
+## Meta models: which, where they run, what they do
+
+witness's recorder and gate are deterministic and call no model. Models appear
+in two places only, and every model called at runtime is a Meta model.
+
+| Model | Where it runs | What it does | Provenance |
+|---|---|---|---|
+| Muse Spark Open (`meta-models/muse-spark-open-1026`, open-weight) | Baseten (`--analyst-provider baseten`) | Analyst pass: writes an advisory plain-language verdict and a confidence score for a recorded bundle. It never changes a pass/fail result. Also runs inside the merge gate on real GitHub runners ([PR #3](https://github.com/AariaSec/witness/pull/3)). | `runs/frozen/analyst-live-proof-*`, `docs/NUMBERS.md` |
+| Muse Spark 1.3 | Meta Model API (`--analyst-provider meta`) | The same analyst pass, called first-party. | `docs/NUMBERS.md` |
+| Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log, never its prompts. | `runs/frozen/muse-real-agent-proof-*` |
+
+witness also ships a parser for Claude Code session logs, to show the recorder
+works on a second, different agent. Claude Code is only ever an *observed
+subject*; witness never calls it, or any non-Meta model, at runtime.
+
 ## What this is not
 
 Nothing in this repo captures, stores, or displays prompt or response
