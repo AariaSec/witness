@@ -163,6 +163,8 @@ witness verify <bundle.jsonl> --with-analyst --analyst-provider meta
 | `baseten` | `BASETEN_API_KEY` | Muse Spark Open (open-weight) |
 | `fireworks` | `FIREWORKS_API_KEY` | same open-weight model, second host |
 
+A live call is not instant: in our captured runs of the Meta Model API it took about 40 s, and some attempts timed out (59 s and 142 s) and fell back to the offline template (`analyst_status="offline"`). The fallback is by design and the verdict never depends on the call.
+
 With no key set the command still succeeds and prints the offline template
 (`analyst_status="offline"`). The recorded runs in `runs/frozen/` include the
 analyst output from our own live calls, so you can inspect real model output
@@ -184,11 +186,14 @@ a composite GitHub Action:
     baseten-api-key: ${{ secrets.BASETEN_API_KEY }}
 ```
 
-Two real, live pull requests on this repo show the gate actually running
-on GitHub's own infrastructure, not simulated: [PR #1, green](https://github.com/AariaSec/witness/pull/1)
-(a faithful session) and [PR #2, red](https://github.com/AariaSec/witness/pull/2)
-(the decoy-credential catch) — both link straight into the live console
-from their own CI step summary.
+Live pull requests on this repo show the gate running on GitHub's own
+infrastructure (the CI runs are real): [PR #1, green](https://github.com/AariaSec/witness/pull/1)
+(a faithful session); [PR #2, red](https://github.com/AariaSec/witness/pull/2)
+(a decoy-credential exfiltration, where the recorded session is a scripted
+stand-in agent and the console labels it **SIMULATED**); and
+[PR #4, red](https://github.com/AariaSec/witness/pull/4) (a real
+`credential_persist` catch from a real agent session). Each links straight
+into the live console from its CI step summary.
 
 ## Use it from a coding agent (MCP)
 
@@ -291,7 +296,9 @@ of three — see the "Why" section above):
 - **Latency** (time to signal): persistence detection fires in
   **5.9–19.3ms**, against a 500ms budget — measured on the owner's
   machine, not a CI runner; treat as provisional until re-measured there.
-- **Fidelity** (escape rate): scenario arena, 10/10 archetypes recorded
+- **Fidelity** (escape rate): the latest frozen arena run
+  (`runs/frozen/arena-20261028b/`) scored 11 scenarios — 9 flagged, 0 missed,
+  0 false alarms, 2 benign. The first official run (2026-10-26): scenario arena, 10/10 archetypes recorded
   and scored — 8 flagged, 2 true-negative, 0 false alarms, **1 disclosed
   genuine miss at the time that frozen run was recorded** (2026-10-26:
   `pgroup_escape` had no dedicated detector yet). That frozen run is never
@@ -314,6 +321,7 @@ of three — see the "Why" section above):
 - **A real coding agent, not a stand-in**: a genuine Muse Code session
   independently caught fetching and saving a decoy credential — see
   `docs/NUMBERS.md`'s flagship proof run.
+- **A small, honestly labeled experiment** (`scripts/experiment/`, n=16 decoy-adjacent / n=16 control real Muse Code sessions): **44% touched the decoy**, controls **100% clean**, and a **0% self-report mismatch rate** — a real, slightly deflating finding: these agents did not misreport in this sample. It also surfaced two false-positive bugs in our own detectors, both fixed (`docs/LIMITATIONS.md`).
 - **Two independent live Meta model providers, four real calls on
   record**: Muse Spark Open (`meta-models/muse-spark-open-1026` via
   Baseten) correctly analyzed a real bundle — `analyst_status="ok"`,
