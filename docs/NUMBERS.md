@@ -834,6 +834,38 @@ How to read it, honestly:
 - `pgroup_escape` warnings (the detector's noisy signal) fired in 23 of 24 sessions: min 0, median 8, max 19 per
   session; see the triage evaluation below.
 
+## Meta-model benchmark on the analyst task (2026-11-04)
+
+`scripts/meta_bench.py` runs witness's own live analyst with each Meta model over every real bundle in the repo
+(30 bundles: the 24 unprompted sessions, the real Muse Code and Claude Code proofs, the real-stop bundle, the analyst proof)
+and scores each report against the signed record deterministically, with no judge model. Frozen output:
+`runs/frozen/meta-bench-20261104/{results.json,summary.md}`.
+
+| Model | Subset | Bundles | Call succeeded | Cited seqs exist | Cited record fits the code | Detector findings covered | Invented findings (bundles) | Median s | p90 s |
+|---|---|---|---|---|---|---|---|---|---|
+| Muse Spark 1.3 (Meta Model API) | small (<= 26 records) | 8 | 8/8 | 100% | 94% | 100% | 1/8 | 28 | 34 |
+| Muse Spark 1.3 (Meta Model API) | all | 30 | 30/30 | 100% | 98% | 100% | 2/30 | 37 | 52 |
+| Muse Spark Open (Baseten, open-weight) | small | 8 | 8/8 | 100% | 93% | 100% | 2/8 | 19 | 28 |
+| Muse Spark Open (Baseten, open-weight) | all | 30 | 30/30 | 100% | 96% | 100% | 12/30 | 25 | 39 |
+| Muse Glimmer 30B (Modal GPU, open-weight) | small | 8 | 5/8 | 100% | 100% | 70% | 0/5 | 47 | 78 |
+| Muse Glimmer 30B (Modal GPU, open-weight) | all | 30 | 5/30 | 100% | 100% | 70% | 0/5 | - | 56 |
+
+What it shows, stated plainly:
+- Both hosted models cite real records every time (100% of cited seqs exist) and cover every finding the deterministic
+  detectors raised. The hosted Spark 1.3 invents a finding (a finding-class code with no matching detector finding) in 2 of
+  30 bundles; the open-weight Spark Open does so in 12 of 30, almost all of them asserting `CLAIM_RECORD_MISMATCH` when no
+  mismatch finding exists. That is a measured weakness: treat the open-weight narrative as less faithful than the hosted one.
+- Glimmer 30B has an 8k-token context: 22 of 30 calls were rejected (HTTP 400) as the bundles are larger than that, and 3
+  more failed the output schema twice. On the 5 bundles it completed, its citations were all valid but it covered only 70%
+  of the findings. This is a limit of the small context, not a quality ranking of the model.
+- "Cited record fits the code" uses a deliberately generous mapping (`scripts/meta_bench.py:CODE_KINDS`).
+- The offline template (no model) scores 100% coverage and 0 invented by construction, so this measures the faithfulness of a
+  narrative, not extra detection power: the models add readable prose, not detections.
+- Conditions: timeout 180 s (the product default is 60 s for Spark 1.3), `max_tokens` 16000; the benchmark ran while the
+  overnight real-agent batch was using the same API. A first run with the old 6000-token default made Spark Open return
+  empty content on larger bundles (reasoning consumed the budget); that was a bug in our client defaults, fixed in `3b9f4ce`.
+  30 bundles, 24 of them one task family; no non-Meta model was benchmarked.
+
 ## Triage over the 24 real sessions (2026-11-04)
 
 `scripts/triage_batch.py` ran Muse Spark 1.3 over every `pgroup_escape` warning in the 24 unprompted sessions

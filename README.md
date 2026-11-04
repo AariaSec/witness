@@ -183,6 +183,14 @@ With no key set the command still succeeds and prints the offline template
 analyst output from our own live calls, so you can inspect real model output
 without running anything.
 
+## How the Meta models compare on this task
+
+`scripts/meta_bench.py` scores each model's analyst report against the signed record, deterministically, over 30 real bundles
+(`docs/NUMBERS.md`, `runs/frozen/meta-bench-20261104/`). Muse Spark 1.3 and Muse Spark Open each completed 30 of 30, cited real
+records 100% of the time and covered every detector finding; Spark 1.3 invented a finding in 2 of 30 bundles, Spark Open in
+12 of 30 (mostly asserting a claim mismatch the detectors did not raise). Muse Glimmer 30B completed only 5 of 30 because of its
+8k-token context. The models add readable narrative, not detections. No non-Meta model was benchmarked.
+
 ## Let a Meta model triage a finding (optional)
 
 `witness triage <bundle> --provider meta` hands the bundle's `mismatch`
