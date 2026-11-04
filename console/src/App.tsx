@@ -33,6 +33,7 @@ import { ClaimDiff } from "./components/ClaimDiff";
 import { DivergenceFlow } from "./components/DivergenceFlow";
 import { ReceiptPanel } from "./components/ReceiptPanel";
 import { ReportPanel } from "./components/ReportPanel";
+import { StoredReadout } from "./components/StoredReadout";
 import { DriftPanel } from "./components/DriftPanel";
 import { Scrubber } from "./components/Scrubber";
 
@@ -316,6 +317,7 @@ export default function App() {
     const sp = Number(qs.get("speed"));
     if ([0.5, 1, 2, 4, 8].includes(sp)) setSpeed(sp);
     setShareMode(qs.get("view") === "share");
+    if (qs.get("view") === "evidence") setTab("evidence");
     fetchBundle(path)
       .then((b) => adopt(b, replay, atSeq))
       .catch((e) => {
@@ -751,6 +753,8 @@ export default function App() {
               <ReportPanel bundle={bundle} cursor={cursor} />
               <DriftPanel bundle={bundle} cursor={cursor} />
             </div>
+
+            <StoredReadout bundle={bundle} />
           </div>
 
           <div className={tab === "overview" ? "space-y-5" : "hidden"}>

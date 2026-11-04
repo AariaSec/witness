@@ -43,6 +43,7 @@ def main() -> None:
     recs = read_ledger(path)
     out_path = BUNDLES / f"{a.bundle}.explain.json"
     existing = json.loads(out_path.read_text()) if out_path.exists() else {"bundle": f"bundles/{a.bundle}.jsonl", "readouts": []}
+    existing["run_id"] = recs[0].run_id  # the console only shows this read-out next to the bundle with the same run id
     for prov in a.providers:
         client = _resolve_analyst_client(prov)
         if client is None:
