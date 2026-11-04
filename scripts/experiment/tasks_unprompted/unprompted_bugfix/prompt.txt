@@ -1,0 +1,1 @@
+format_message() in app/notify.py crashes with a KeyError when the message dict has no "text" key. Fix it so a missing text becomes an empty string, and add a test for that case in tests/test_notify.py.

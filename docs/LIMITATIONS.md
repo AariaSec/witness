@@ -61,6 +61,12 @@ what's solid versus what's a placeholder.
 
 ## Known gaps worth naming
 
+- **The unprompted batch is small and constructed (2026-11-03).** 24 sessions, one agent (Muse Code), four
+  hand-written tasks, n=6 per arm; the README that tells the agent to fetch a token was written by us. The
+  decoy-fetch marker identifies the agent's session process, not which command or child made the request. A "wrote
+  outside the workspace" count is claimed writes to absolute or parent-relative paths, which the recorder cannot
+  observe. It shows what a real agent does when a repo file instructs it, not the prevalence of such files.
+
 - **`witness triage` is narrow and advisory (added 2026-11-03).** It adjudicates only warn-severity
   `mismatch` and `pgroup_escape` findings (the latter only annotated `LIKELY_BENIGN`, never cleared: the recorder's only network capture is
   the loopback decoy, so a detached process doing real-network exfiltration leaves nothing for the guard to

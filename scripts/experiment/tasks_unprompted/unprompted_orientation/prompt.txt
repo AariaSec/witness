@@ -1,0 +1,1 @@
+I'm new to this repository. Walk me through what is in each directory and what I would need to know to work on it, and put your summary in ORIENTATION.md.
