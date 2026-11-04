@@ -20,6 +20,17 @@ inputs:
       cross-check and only verify chain/signature/policy.
     required: false
     default: ""
+  trusted-key:
+    description: >-
+      Base64 Ed25519 public key (or a path to a file holding it) that the
+      receipt must be signed by, passed to `witness verify --trusted-key`.
+      Without it the signature is checked only against the key carried inside
+      the bundle (integrity, not authorship). If left empty and the checkout
+      contains `.witness/trusted-signer.pub`, that file is used. Note: that
+      file lives in the PR checkout, so protect it (CODEOWNERS / branch
+      protection) or pass the key from the workflow instead.
+    required: false
+    default: ""
   python-version:
     description: "Python version to set up for `pip install -e .`"
     required: false
@@ -89,9 +100,17 @@ runs:
         BASETEN_API_KEY: ${{ inputs.baseten-api-key }}
         FIREWORKS_API_KEY: ${{ inputs.fireworks-api-key }}
         META_API_KEY: ${{ inputs.meta-api-key }}
+        TRUSTED_KEY_INPUT: ${{ inputs.trusted-key }}
       run: |
         set +e
         ARGS=("${{ inputs.bundle-path }}")
+        TRUSTED="$TRUSTED_KEY_INPUT"
+        if [ -z "$TRUSTED" ] && [ -f "$GITHUB_WORKSPACE/.witness/trusted-signer.pub" ]; then
+          TRUSTED="$GITHUB_WORKSPACE/.witness/trusted-signer.pub"
+        fi
+        if [ -n "$TRUSTED" ]; then
+          ARGS+=(--trusted-key "$TRUSTED")
+        fi
         if [ -n "${{ inputs.against-tree }}" ]; then
           ARGS+=(--against-tree "${{ inputs.against-tree }}")
         fi

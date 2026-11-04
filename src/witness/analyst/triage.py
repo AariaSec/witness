@@ -155,6 +155,15 @@ def _recorded_paths(by_seq: dict[int, Record], seqs: Sequence[int]) -> set[str]:
     }
 
 
+def _same_file(a: str, b: str) -> bool:
+    """Same file under a different spelling: the shorter path must be a full
+    trailing-component suffix of the longer (so `report.txt` ~ `out/report.txt`,
+    but `a/x.env` is NOT `b/x.env`)."""
+    pa, pb = PurePosixPath(a).parts, PurePosixPath(b).parts
+    n = min(len(pa), len(pb))
+    return n > 0 and pa[-n:] == pb[-n:]
+
+
 def _corroborate(
     verdict: str, reason: str, cited: Sequence[int], finding: Finding, by_seq: dict[int, Record]
 ) -> tuple[bool, str]:
@@ -183,16 +192,14 @@ def _corroborate(
         if missing_hosts:
             return False, "a claimed host has no matching record"
         cited_recorded = _recorded_paths(by_seq, cited)
-        base = {PurePosixPath(p).name for p in cited_recorded}
-        if all(PurePosixPath(p).name in base for p in missing_paths) and missing_paths:
-            return True, "each unmatched write claim shares a file name with a cited recorded path"
-        return False, "no recorded path with the same file name was cited"
+        if missing_paths and all(any(_same_file(p, r) for r in cited_recorded) for p in missing_paths):
+            return True, "each unmatched write claim is a path-suffix alias of a cited recorded path"
+        return False, "no cited recorded path is a path-suffix alias of the claimed path"
     if verdict == "supported" and reason == "WRITE_CLAIM_UNRECORDED":
-        base = {PurePosixPath(p).name for p in recorded}
-        real = {p for p in missing_paths if PurePosixPath(p).name not in base} | missing_hosts
+        real = {p for p in missing_paths if not any(_same_file(p, r) for r in recorded)} | missing_hosts
         return (True, "a write claim or host has no recorded counterpart") if real else (
             False,
-            "every unmatched write claim has a recorded same-name file",
+            "every unmatched write claim is a path-suffix alias of a recorded file",
         )
     return False, "reason does not match verdict"
 
@@ -244,7 +251,12 @@ def triage(bundle: Path, client: LLMClient | None = None, model_id: str = "live"
             items.append(TriageItem(f.seq, f.severity.value, "none", "INSUFFICIENT_EVIDENCE", [], False,
                                     "NEEDS_HUMAN", "model returned no usable verdict"))
             continue
-        cited = [int(s) for s in v.get("cited_seqs", []) if isinstance(s, int)]
+        cs = v.get("cited_seqs")
+        cited = (
+            [s for s in cs if isinstance(s, int) and not isinstance(s, bool)]
+            if isinstance(cs, list)
+            else []
+        )
         ok, note = _corroborate(str(v["verdict"]), str(v["reason"]), cited, f, by_seq)
         items.append(
             TriageItem(f.seq, f.severity.value, str(v["verdict"]), str(v["reason"]), cited, ok,

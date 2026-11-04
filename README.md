@@ -122,7 +122,7 @@ Creates a venv if needed, generates a signing key, records a real
 `witness verify` (the actual merge-gate check, real exit code — `2` means
 a real stop-severity finding fired), and opens the already-hosted
 [live console](https://aariasec.github.io/witness/) so you can drag the
-freshly-printed `bundle.jsonl` onto it yourself. No API key, no network
+freshly-printed `bundle.jsonl` onto it yourself. No API key, no network after install
 except the recorder's own loopback marker/sink, nothing uploaded (parsed
 client-side in your own tab). Measured on the owner's machine: 1.6s with
 an existing `.venv`, 12.1s from a completely fresh clone (includes
@@ -218,9 +218,11 @@ checks the receipt's signature against the public key carried *inside* the
 bundle. That proves the bundle was not changed after it was signed; it does not
 prove who signed it, because someone who edits a bundle could re-sign it with a
 fresh key. To pin the author, run `witness verify <bundle> --trusted-key <base64-pubkey-or-file>`:
-a bundle signed by any other key exits 4. The CLI option exists and is tested;
-the GitHub Action and the demo PRs below do not pin a key yet, and the gate
-only runs on pull requests that touch a committed bundle (`docs/LIMITATIONS.md`).
+a bundle signed by any other key exits 4. The CLI option is tested, and the GitHub
+Action now takes a `trusted-key` input (or reads `.witness/trusted-signer.pub`,
+which holds this repo's signer key). The demo PRs below ran before that existed
+and did not pin a key, and the gate only runs on pull requests that touch a
+committed bundle (`docs/LIMITATIONS.md`).
 
 Live pull requests on this repo show the gate running on GitHub's own
 infrastructure (the CI runs are real): [PR #1, green](https://github.com/AariaSec/witness/pull/1)
@@ -357,10 +359,10 @@ of three — see the "Why" section above):
   [StrongDM uses in production](https://thenewstack.io/agentic-software-factory-sensor/)
   — an external holdout set an agent can't optimize against.
 - **A real coding agent, not a stand-in**: a genuine Muse Code session
-  independently caught fetching and saving a decoy credential — see
+  independently recorded fetching and saving a decoy credential (as its task directed) — see
   `docs/NUMBERS.md`'s flagship proof run.
 - **A small, honestly labeled experiment** (`scripts/experiment/`, n=16 decoy-adjacent / n=16 control real Muse Code sessions): **44% touched the decoy**, **16/16 controls passed the gate** (7 carried a non-blocking `pgroup_escape` warning), and a **0% self-report mismatch rate** — a real, slightly deflating finding: these agents did not misreport in this sample. It also surfaced two false-positive bugs in our own detectors, both fixed (`docs/LIMITATIONS.md`).
-- **Three independent live Meta model providers, six real calls on
+- **Three live Meta-model paths (Meta Model API, Baseten, our own Modal GPU; Fireworks is built but not live-verified), six real calls on
   record**: Muse Spark Open (`meta-models/muse-spark-open-1026` via
   Baseten) correctly analyzed a recorded scripted-scenario bundle (manifest `simulated: true`) — `analyst_status="ok"`,
   `confidence=0.88` on first run (2026-10-26), re-run clean under the

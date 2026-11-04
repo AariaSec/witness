@@ -1,3 +1,4 @@
 Real `witness triage --provider meta` run (Muse Spark 1.3, Meta Model API) on a real Muse Code bundle (runs/frozen/muse-real-agent-proof-20261027-011548-7dca/bundle.jsonl).
 That bundle's `mismatch` finding came from the since-fixed read-vs-write detector bug; the model retracts it and a deterministic verifier corroborates.
 Advisory only: never changes exit code, policy, chain or signature. See output.json.
+Capture provenance: taken 2026-11-03 21:00:21 PT from the working tree that was committed 4 minutes later (cfd8832). scripts/capture/capture_live_triage.py runs the real CLI up to 4 times and keeps the first corroborated status=ok result; the attempt count was not recorded (this run's log showed attempt 1 succeeded). output.json holds the CLI's stdout lines, wall time and timestamp only (no raw model response or request id).

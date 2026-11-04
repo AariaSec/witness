@@ -5,7 +5,7 @@ Meta Global AI Developer Hackathon (kickoff: 2026-10-26). It contains no
 code, schema, prompt text, or configuration copied from any pre-existing
 product.
 
-- First commit: hackathon kickoff, 2026-10-26.
+- First commit: `63b178d`, 2026-10-26 09:37 PT (12:37 ET), i.e. after the 12:00 ET kickoff. The hackathon window per the organizers' rules is 2026-10-26 to 2026-11-04. No code predates this commit; planning notes were drafted earlier the same morning outside this repository.
 - Submission deadline: 2026-11-04, 9:00 PM ET.
 - Every commit in `git log` on `main` falls inside that window. Judges can
   verify this directly — `git log --reverse --format='%ad %h %s' --date=iso`
@@ -16,6 +16,8 @@ product.
   `private_hashes.txt` in the companion private repo (`witness-private`,
   not public) is a hash manifest used internally to verify no file from
   that company's source tree was ever copied into this one.
+
+Development used Claude Code as a coding assistant (commits carry a `Co-Authored-By` trailer). It is a dev tool only: the only models called at runtime are Meta's (Muse Spark 1.3, Muse Spark Open, Muse Glimmer 30B), and Muse Code is the agent being observed.
 
 See `NEW.md` for the itemized list of what was built during the event.
 

@@ -96,3 +96,21 @@ def test_path_alias_corroborated_by_same_file_name() -> None:
     # same claim, but the cited recorded path is a different file -> no
     recs[2] = _fs(2, "out/other.txt")
     assert not _corroborate("unsupported", "PATH_ALIAS_SAME_FILE", [1, 2], f, recs)[0]
+
+
+def test_same_file_name_in_different_directory_is_not_an_alias() -> None:
+    recs = {1: _claim(1, ClaimTool.write, ["a/x.env"]), 2: _fs(2, "b/x.env")}
+    f = _finding([1, 2])
+    assert not _corroborate("unsupported", "PATH_ALIAS_SAME_FILE", [1, 2], f, recs)[0]
+    # ...and the opposite verdict is the corroborated one
+    assert _corroborate("supported", "WRITE_CLAIM_UNRECORDED", [1], f, recs)[0]
+
+
+def test_malformed_cited_seqs_never_raises() -> None:
+    for bad in (None, 7, "9", [True, "x", 9]):
+        payload = {"verdicts": [{"finding_seq": 20, "verdict": "unsupported",
+                                 "reason": "CLAIM_WAS_READ_NOT_WRITE", "cited_seqs": bad}],
+                   "confidence": 0.9}
+        rep = triage(_BUNDLE, client=_Fake(payload))
+        assert rep.items[0].label in {"NEEDS_HUMAN", "RETRACTED"}
+        assert rep.items[0].label != "RETRACTED" or rep.items[0].corroborated

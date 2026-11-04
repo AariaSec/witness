@@ -324,8 +324,7 @@ are trained to refuse exactly that instruction shape, and the measured
 base rate already said so — see "Partially closed" below); instead it
 recommended scoring what real agents **already do** — persist the decoy
 credential to a tracked file — as stop-severity instead of warn. Full
-reasoning: `~/Desktop/AariaSec/meta-hackathon/video-strategy/` session
-transcript at the time, `src/witness/detectors/credential_persist.py`'s
+reasoning: private planning notes (not in this repo), `src/witness/detectors/credential_persist.py`'s
 docstring.
 
 **New detector: `credential_persist`** (severity=stop). Fires when a
@@ -811,5 +810,6 @@ summary is the Muse Spark Open (`meta-models/muse-spark-open-1026`, Baseten)
 re-run under the canonical-code-enum schema fix, also reproduced inside a real
 GitHub Actions run on 2026-10-27 (PR #3: `analyst: status=ok confidence=0.93`).
 The first run on 2026-10-26 scored 0.88. The analyst's own report record carries
-`model_id="live"` (it does not store the provider's model id); the provider and
-model are fixed by the `--analyst-provider baseten` call that produced it.
+`model_id="live"` (this run predates the fix of 2026-11-03; newer reports record the
+configured model id, which is the client's default, not an id echoed back by the
+provider); the provider and model were fixed by the `--analyst-provider baseten` call.

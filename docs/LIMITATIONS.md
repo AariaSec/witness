@@ -76,12 +76,16 @@ what's solid versus what's a placeholder.
   a bundle can re-sign it with their own key and the default check still
   passes. `witness verify --trusted-key <key|file>` now pins the expected
   signer (mismatch exits 4; covered by `tests/unit/test_cli_verify.py`), but
-  it is opt-in: the GitHub Action and the demo PRs do not pass it, and
+  it is opt-in: the GitHub Action accepts a `trusted-key` input (or reads
+  `.witness/trusted-signer.pub` from the checkout, which a PR could itself edit unless that
+  file is protected by CODEOWNERS/branch protection), the demo PRs ran before it existed,
+  and
   `.github/workflows/witness-check.yml` neither passes `--against-tree` nor
   fails a PR that carries no bundle (it only triggers when a PR touches
   `runs/frozen/**/bundle.jsonl`). So the merge gate shown in the video proves a
   recorded bundle is internally consistent and unaltered since signing, not
-  that the signer was trusted.
+  that the signer was trusted. The workflow also verifies only the first changed
+  bundle (`head -n1`), so a PR touching several bundles has only the first one checked.
 
 - **The console's receipt verification didn't match what the backend
   actually signed, for every Receipt v0.2 bundle** (fixed 2026-10-27,
