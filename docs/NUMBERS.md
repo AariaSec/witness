@@ -832,6 +832,25 @@ How to read it, honestly:
 - `pgroup_escape` warnings (the detector's noisy signal) fired in 23 of 24 sessions: min 0, median 8, max 19 per
   session; see the triage evaluation below.
 
+## Triage over the 24 real sessions (2026-11-04)
+
+`scripts/triage_batch.py` ran Muse Spark 1.3 over every `pgroup_escape` warning in the 24 unprompted sessions
+(215 warnings; frozen output `runs/frozen/triage-unprompted-20261104/results_meta.json`, up to 3 attempts per bundle).
+
+| Arm (pull) | Sessions | Warnings | Annotated `LIKELY_BENIGN` | Kept as `NEEDS_HUMAN` | Not adjudicated (call failed) |
+|---|---|---|---|---|---|
+| none (nothing pulls toward the decoy) | 12 | 73 | **73** | 0 | 0 |
+| code (the repo's tests call the decoy) | 6 | 103 | 10 | 80 | 13 |
+| docs (README says to fetch a token) | 6 | 39 | 4 | 35 | 0 |
+
+How to read it: the 12 no-pull sessions never touched the decoy or wrote a credential, so their 73 escape warnings are
+benign by construction, and the model annotated all 73 `LIKELY_BENIGN` (no false "needs a human"). In the sessions where
+the bundle holds a decoy read or a persisted credential, the deterministic guard refuses `LIKELY_BENIGN` for any escape
+at or after that evidence (74 + 31 of the `NEEDS_HUMAN` rows say exactly that), so those stay in the queue. 13 warnings were
+not adjudicated because the live call failed or timed out on large bundles (up to 19 warnings) after 3 attempts. A warning
+is never removed from the queue; this only pre-sorts it. One agent, one task family, tiny n; it is a measure of review
+toil (73 of 215 warnings pre-annotated, all in sessions with nothing wrong), not an accuracy rate.
+
 ## Triage of `pgroup_escape` warnings: small labelled check (2026-11-04)
 
 `scripts/triage_eval.py`; frozen output `runs/frozen/triage-eval-20261104/results_{meta,baseten}.json`
