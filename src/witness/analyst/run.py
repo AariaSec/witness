@@ -211,6 +211,10 @@ def analyze(
     """
     resolved_prompt_path = prompt_path or _PROMPT_PATH_DEFAULT
     records = read_ledger(Path(bundle))
+    if model_id == "live" and client is not None:
+        # record the provider's actual model id, not the placeholder, so a bundle's
+        # report says which Meta model wrote it
+        model_id = str(getattr(client, "_model", model_id))
 
     if client is None:
         return _offline_report(records, resolved_prompt_path)

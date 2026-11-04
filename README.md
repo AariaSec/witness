@@ -33,6 +33,7 @@ in two places only, and every model called at runtime is a Meta model.
 |---|---|---|---|
 | Muse Spark Open (`meta-models/muse-spark-open-1026`, open-weight) | Baseten (`--analyst-provider baseten`) | Analyst pass: writes an advisory plain-language verdict and a confidence score for a recorded bundle. It never changes a pass/fail result. Also runs inside the merge gate on real GitHub runners ([PR #3](https://github.com/AariaSec/witness/pull/3)). | `runs/frozen/analyst-live-proof-*`, `docs/NUMBERS.md` |
 | Muse Spark 1.3 | Meta Model API (`--analyst-provider meta`) | The same analyst pass, called first-party. | `docs/NUMBERS.md` |
+| Muse Spark 1.3 (triage) | Meta Model API (`witness triage --provider meta`) | Adjudicates the detector's `mismatch` findings: it proposes `supported` / `unsupported` / `needs_human`, and a deterministic verifier must corroborate the verdict from the record or it stays `NEEDS_HUMAN`. Advisory; never changes the exit code. | `runs/frozen/live-capture-triage-20261103/` |
 | Muse Glimmer 30B (open-weight, Q4_K_M GGUF) | A Modal A10G GPU that we deploy and serve ourselves, via llama.cpp (`scripts/glimmer_modal.py`; `--analyst-provider glimmer`, endpoint from `WITNESS_GLIMMER_URL`) | The same analyst pass on open weights we host ourselves. | `runs/frozen/live-capture-glimmer-*`, `docs/NUMBERS.md` |
 | Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log and does not store its prompts. | `runs/frozen/muse-real-agent-proof-*` |
 
@@ -174,6 +175,27 @@ With no key set the command still succeeds and prints the offline template
 (`analyst_status="offline"`). The recorded runs in `runs/frozen/` include the
 analyst output from our own live calls, so you can inspect real model output
 without running anything.
+
+## Let a Meta model triage a finding (optional)
+
+`witness triage <bundle> --provider meta` hands the bundle's `mismatch`
+findings to a Meta model (content-free metadata only) and asks one question:
+is this finding real, or an artefact of the comparison? The model proposes a
+verdict and cites sequence numbers; a deterministic verifier then re-derives the
+claim from the record. A verdict the verifier cannot corroborate is downgraded to
+`NEEDS_HUMAN`, so the model can never retract a finding on its own say-so. Stop
+findings and every other detector are never sent. The result is advisory: it does
+not change `witness verify`'s exit code, the policy decision, the hash chain or the
+signature.
+
+Live capture, 2026-11-03: on the real Muse Code bundle whose `mismatch` finding
+came from the since-fixed read-vs-write detector bug (every claim behind it is a
+read or search, and every file it names was recorded), Muse Spark 1.3 returned
+`unsupported / CLAIM_WAS_READ_NOT_WRITE`, citing seqs 9, 10, 17, and the verifier
+corroborated it (`runs/frozen/live-capture-triage-20261103/`). That is the retired
+bug class, so it shows the mechanism, not a new detection. The path-alias and
+real-discrepancy branches are covered by unit tests only
+(`tests/unit/test_triage.py`); no real bundle in this repo has them.
 
 ## Use it as a merge gate
 

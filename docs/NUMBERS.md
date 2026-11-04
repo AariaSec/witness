@@ -763,6 +763,27 @@ fell back to the offline template (`analyst_status=offline`); only the first
 the Meta API also fell back at 59 s and 142 s before one succeeded.
 
 
+## Live capture: Meta-model triage of a finding (2026-11-03)
+
+`witness triage runs/frozen/muse-real-agent-proof-20261027-011548-7dca/bundle.jsonl --provider meta`
+(Muse Spark 1.3, Meta Model API; one `status=ok` call, wall 11.5 s,
+`runs/frozen/live-capture-triage-20261103/output.json`):
+
+```
+triage: mismatch finding seq=20 (detector severity=warn) -> RETRACTED | model=unsupported CLAIM_WAS_READ_NOT_WRITE cites=[9, 10, 17] | verifier: corroborated
+triage: status=ok model=muse-spark-1.3 confidence=1.0
+```
+
+What this is and is not: that bundle's seq-20 `mismatch` finding is the one produced by
+the since-fixed read-vs-write detector bug (corrected below); all claims behind it are
+`read`/`search` claims and every file they name has a recorded create/modify. The model
+disagreed with the frozen detector finding, and the deterministic verifier independently
+confirmed the claim from the record. The current detector no longer raises it, so this
+demonstrates the adjudication mechanism on a retired bug class; it is not evidence of a
+new real-world detection. Signed bundle contents are unchanged (the retraction is a
+separate advisory output, never written into the bundle). Shown only in the demo
+video as a replay of this captured output.
+
 ## Correction (2026-11-03): the flagship Muse Code run's `mismatch` finding
 
 The flagship Muse Code run (`runs/frozen/muse-real-agent-proof-20261027-011548-7dca/`)

@@ -61,6 +61,14 @@ what's solid versus what's a placeholder.
 
 ## Known gaps worth naming
 
+- **`witness triage` is narrow and advisory (added 2026-11-03).** It adjudicates only
+  `mismatch` findings. A model verdict counts only when a deterministic verifier
+  re-derives it from the record; anything else stays `NEEDS_HUMAN`. Its one real-data
+  proof is on a retired bug class (the old read-vs-write false positive, which the current
+  detector no longer raises); the path-alias and real-discrepancy branches are
+  unit-tested only. It never edits a signed bundle and never changes `witness verify`'s
+  exit code, so the merge gate is unchanged.
+
 - **Receipt signatures are self-certifying unless a key is pinned
   (disclosed 2026-11-03).** `actions/receipt.py::verify_receipt` verifies the
   signature against the public key embedded in the receipt body. That proves

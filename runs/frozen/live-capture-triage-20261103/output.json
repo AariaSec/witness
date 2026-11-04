@@ -1,0 +1,10 @@
+{
+ "cmd": "witness triage bundle.jsonl --provider meta",
+ "lines": [
+  "triage: mismatch finding seq=20 (detector severity=warn) -> RETRACTED | model=unsupported CLAIM_WAS_READ_NOT_WRITE cites=[9, 10, 17] | verifier: corroborated",
+  "triage: status=ok model=muse-spark-1.3 confidence=1.0 (advisory only \u2014 the policy/chain/signature checks are the whole gate decision)"
+ ],
+ "wall_ms": 11509,
+ "exit": 0,
+ "captured_at": "2026-11-03T21:00:21-08:00"
+}

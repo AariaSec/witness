@@ -823,6 +823,48 @@ def verify(
 
 
 @app.command()
+def triage(
+    bundle_path: Path = typer.Argument(..., help="bundle.jsonl whose mismatch findings to triage"),
+    provider: str = typer.Option(
+        "meta",
+        "--provider",
+        help="Meta model to adjudicate with: 'meta' (Muse Spark 1.3, Model API), 'baseten' "
+        "(Muse Spark Open) or 'glimmer'. Falls back to 'not adjudicated' offline.",
+    ),
+    out: Path | None = typer.Option(None, "--out", help="also write the triage report JSON here"),
+) -> None:
+    """Have a Meta model adjudicate the bundle's `mismatch` findings; a deterministic
+    verifier must corroborate each verdict from the record, else it stays NEEDS_HUMAN.
+    Advisory only: never changes the exit code, policy, chain or signature."""
+    from witness.analyst.triage import triage as run_triage
+
+    try:
+        validate_bundle(bundle_path)
+    except BundleQuarantined as exc:
+        typer.echo(f"INVALID: {len(exc.violations)} leak-scan violation(s)", err=True)
+        raise typer.Exit(code=VERIFY_EXIT_LEAK_VIOLATION) from exc
+    except BundleChainInvalid as exc:
+        typer.echo(f"INVALID: hash chain broken at seq={exc.first_bad_seq}", err=True)
+        raise typer.Exit(code=VERIFY_EXIT_CHAIN_INVALID) from exc
+
+    report = run_triage(bundle_path, client=_resolve_analyst_client(provider))
+    if not report.items:
+        typer.echo("triage: no mismatch findings to adjudicate")
+    for it in report.items:
+        typer.echo(
+            f"triage: mismatch finding seq={it.finding_seq} (detector severity={it.detector_severity}) -> "
+            f"{it.label} | model={it.model_verdict} {it.reason} cites={it.cited_seqs} | "
+            f"verifier: {'corroborated' if it.corroborated else 'not corroborated'}"
+        )
+    typer.echo(
+        f"triage: status={report.status} model={report.model_id} confidence={report.confidence} "
+        "(advisory only — the policy/chain/signature checks are the whole gate decision)"
+    )
+    if out is not None:
+        out.write_text(report.to_json(), encoding="utf-8")
+
+
+@app.command()
 def keygen(
     keydir: Path = typer.Option(Path.home() / ".witness" / "keys", help="key directory"),
 ) -> None:
