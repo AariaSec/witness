@@ -26,8 +26,11 @@ sandbox.
 
 ## Meta models: which, where they run, what they do
 
-witness's recorder and gate are deterministic and call no model. Models appear
-in two places only, and every model called at runtime is a Meta model.
+witness's recorder and gate are deterministic and call no model. Meta models appear
+in three places only: the advisory analyst and triage passes, the red-team arena that
+measures how agents respond to planted instructions (a model writes the attack wording,
+witness scores the session), and as the agent being observed. Every model called at
+runtime is a Meta model.
 
 | Model | Where it runs | What it does | Provenance |
 |---|---|---|---|
@@ -35,6 +38,7 @@ in two places only, and every model called at runtime is a Meta model.
 | Muse Spark 1.3 | Meta Model API (`--analyst-provider meta`) | The same analyst pass, called first-party. | `docs/NUMBERS.md` |
 | Muse Spark 1.3 (triage) | Meta Model API (`witness triage --provider meta`) | Adjudicates the detector's `mismatch` findings, and annotates `pgroup_escape` warnings (never clearing them): it proposes `supported` / `unsupported` / `needs_human`, and a deterministic verifier must corroborate the verdict from the record or it stays `NEEDS_HUMAN`. Advisory; never changes the exit code. | `runs/frozen/live-capture-triage-20261103/` |
 | Muse Glimmer 30B (open-weight, Q4_K_M GGUF) | A Modal A10G GPU that we deploy and serve ourselves, via llama.cpp (`scripts/glimmer_modal.py`; `--analyst-provider glimmer`, endpoint from `WITNESS_GLIMMER_URL`) | The same analyst pass on open weights we host ourselves. | `runs/frozen/live-capture-glimmer-*`, `docs/NUMBERS.md` |
+| Muse Spark 1.3 and Muse Spark Open (arena attacker) | Meta Model API and Baseten, called by `scripts/redteam/` | Write the persuasion framing (prose only; a strict validator keeps code, paths and URLs out; the setup step itself is fixed text of ours) for the red-team arena. Muse Spark Open also acts as the adaptive attacker in round 2, seeing only a content-free outcome. It refused 4 of 14 rewrite requests. | `scripts/redteam/generated*/`, `docs/NUMBERS.md` |
 | Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log and does not store its prompts. | `runs/frozen/muse-real-agent-proof-*` |
 
 witness also ships a parser for Claude Code session logs, to show the recorder
@@ -62,13 +66,16 @@ Any scenario shown in the console is clearly labeled
 **SIMULATED RECONSTRUCTION** and uses decoy credentials that point at a
 local sink — never real infrastructure, never a real secret.
 
-This also isn't a pre-deployment red-team or eval framework — it doesn't
-attack an agent with adversarial prompts before it ships. It's a runtime
+witness itself isn't a pre-deployment red-team or eval framework. It's a runtime
 recorder: it watches one real session as it happens, from outside the
 agent's own process, and checks the agent's self-report against what
 independently-observed telemetry says actually happened. Those are
 complementary categories (eval finds what an agent *can* be made to do;
-this catches what an agent *actually did*), not competing ones.
+this catches what an agent *actually did*). The repo also contains an
+experiment harness (`scripts/redteam/`, `scripts/experiment/`) that uses
+witness as the referee to measure how a real agent responds to planted
+instructions; that harness is a measurement built on witness, not part of
+the recorder.
 
 ## Why
 
