@@ -746,7 +746,7 @@ print(sorted(timeit.repeat(lambda: validate_bundle(p), number=1, repeat=20)))
 
 ## Live captures for the demo video (2026-11-03) — Muse Spark 1.3 and Muse Glimmer 30B
 
-Two more real analyst calls, captured on the same real bundle
+Two more real analyst calls, captured on the same recorded scripted-scenario bundle (manifest `simulated: true`)
 (`runs/frozen/analyst-live-proof-20261026-145221-6150/bundle.jsonl`, 19 records,
 policy FAIL: 1 stop finding) so the demo video shows live Meta model calls:
 

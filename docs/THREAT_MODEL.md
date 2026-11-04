@@ -39,9 +39,9 @@ capable or motivated adversary — see "What this does not claim" below.
   An attack contained entirely within reasoning the recorder never observes
   (no file write, no network call, no process spawn) is invisible here on
   principle, not by oversight.
-- **The drift/behavioral-shape detector.** Present in the codebase as a
-  stub that always returns no finding. It is not scored, not shown as a
-  headline number, and not claimed as working — see `LIMITATIONS.md`.
+- **The drift/behavioral-shape detector.** Implemented as an
+  experimental, warn-only signal. It is not scored, not shown as a
+  headline number, and not claimed as reliable — see `LIMITATIONS.md`.
 
 ## Why "decoy", never "real"
 
@@ -62,4 +62,9 @@ and says so.
 3. The signing key used for receipts is generated and held locally
    (`~/.witness/keys/`, 0600) — a receipt proves the record it signs hasn't
    been altered since signing, not that the machine itself wasn't
-   compromised before the recorder started.
+   compromised before the recorder started. The verifier checks the
+   signature against the public key **carried inside the bundle**, so by
+   default the signature is self-certifying: it proves integrity, not
+   authorship — someone who edits a bundle can re-sign it with a fresh
+   key. To prove who signed, pin the expected key (`witness verify
+   --trusted-key`, see `LIMITATIONS.md`).

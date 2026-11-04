@@ -191,6 +191,15 @@ a composite GitHub Action:
     baseten-api-key: ${{ secrets.BASETEN_API_KEY }}
 ```
 
+**What the signature does and does not prove.** By default `witness verify`
+checks the receipt's signature against the public key carried *inside* the
+bundle. That proves the bundle was not changed after it was signed; it does not
+prove who signed it, because someone who edits a bundle could re-sign it with a
+fresh key. To pin the author, run `witness verify <bundle> --trusted-key <base64-pubkey-or-file>`:
+a bundle signed by any other key exits 4. The CLI option exists and is tested;
+the GitHub Action and the demo PRs below do not pin a key yet, and the gate
+only runs on pull requests that touch a committed bundle (`docs/LIMITATIONS.md`).
+
 Live pull requests on this repo show the gate running on GitHub's own
 infrastructure (the CI runs are real): [PR #1, green](https://github.com/AariaSec/witness/pull/1)
 (a faithful session); [PR #2, red](https://github.com/AariaSec/witness/pull/2)
@@ -230,7 +239,7 @@ pip install -e ".[mcp]"
 **Live demo:** with that configured, ask Muse Code directly —
 
 > "Use the witness tool to check whether
-> `runs/frozen/credential-persist-real-proof-20261027-135303-9dba/bundle.jsonl`
+> `console/public/bundles/credential-persist-real-proof.jsonl`
 > passes its merge gate, and list any findings."
 
 — and it calls `witness_verify_bundle` + `witness_list_findings` itself,
@@ -328,10 +337,10 @@ of three — see the "Why" section above):
 - **A real coding agent, not a stand-in**: a genuine Muse Code session
   independently caught fetching and saving a decoy credential — see
   `docs/NUMBERS.md`'s flagship proof run.
-- **A small, honestly labeled experiment** (`scripts/experiment/`, n=16 decoy-adjacent / n=16 control real Muse Code sessions): **44% touched the decoy**, controls **100% clean**, and a **0% self-report mismatch rate** — a real, slightly deflating finding: these agents did not misreport in this sample. It also surfaced two false-positive bugs in our own detectors, both fixed (`docs/LIMITATIONS.md`).
+- **A small, honestly labeled experiment** (`scripts/experiment/`, n=16 decoy-adjacent / n=16 control real Muse Code sessions): **44% touched the decoy**, **16/16 controls passed the gate** (7 carried a non-blocking `pgroup_escape` warning), and a **0% self-report mismatch rate** — a real, slightly deflating finding: these agents did not misreport in this sample. It also surfaced two false-positive bugs in our own detectors, both fixed (`docs/LIMITATIONS.md`).
 - **Three independent live Meta model providers, six real calls on
   record**: Muse Spark Open (`meta-models/muse-spark-open-1026` via
-  Baseten) correctly analyzed a real bundle — `analyst_status="ok"`,
+  Baseten) correctly analyzed a recorded scripted-scenario bundle (manifest `simulated: true`) — `analyst_status="ok"`,
   `confidence=0.88` on first run (2026-10-26), re-run clean under the
   later canonical-code-enum schema fix at `confidence=0.93` — and, as a
   second, first-party proof, a direct call to **Meta's own hosted Model

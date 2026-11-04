@@ -61,6 +61,20 @@ what's solid versus what's a placeholder.
 
 ## Known gaps worth naming
 
+- **Receipt signatures are self-certifying unless a key is pinned
+  (disclosed 2026-11-03).** `actions/receipt.py::verify_receipt` verifies the
+  signature against the public key embedded in the receipt body. That proves
+  integrity (the signed record was not altered), not authorship: whoever edits
+  a bundle can re-sign it with their own key and the default check still
+  passes. `witness verify --trusted-key <key|file>` now pins the expected
+  signer (mismatch exits 4; covered by `tests/unit/test_cli_verify.py`), but
+  it is opt-in: the GitHub Action and the demo PRs do not pass it, and
+  `.github/workflows/witness-check.yml` neither passes `--against-tree` nor
+  fails a PR that carries no bundle (it only triggers when a PR touches
+  `runs/frozen/**/bundle.jsonl`). So the merge gate shown in the video proves a
+  recorded bundle is internally consistent and unaltered since signing, not
+  that the signer was trusted.
+
 - **The console's receipt verification didn't match what the backend
   actually signed, for every Receipt v0.2 bundle** (fixed 2026-10-27,
   found while capturing video clips, not by inspection). `ReceiptBody.

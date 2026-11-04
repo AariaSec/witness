@@ -455,3 +455,41 @@ def test_analyst_provider_meta_is_passed_through_to_resolver(monkeypatch) -> Non
 
     assert result.exit_code == VERIFY_EXIT_OK
     assert seen == ["meta"]
+
+
+# --- --trusted-key: opt-in signer pinning ---------------------------------
+# Without it the signature is checked against the key carried inside the
+# bundle (integrity only). With it, a bundle signed by any other key must
+# exit RECEIPT_INVALID.
+
+
+def _bundle_signer_key(path: Path) -> str:
+    from witness.ledger import read_ledger
+    from witness.bundle import receipt_of
+
+    receipt = receipt_of(read_ledger(path))
+    assert receipt is not None
+    return receipt.body.pubkey
+
+
+def test_trusted_key_matching_passes() -> None:
+    key = _bundle_signer_key(_BENIGN_CORPUS_BUNDLE)
+    res = runner.invoke(app, ["verify", str(_BENIGN_CORPUS_BUNDLE), "--trusted-key", key])
+    assert res.exit_code == VERIFY_EXIT_OK, res.output
+    assert "signer: matches the pinned trusted key" in res.output
+
+
+def test_trusted_key_mismatch_exits_receipt_invalid(tmp_path: Path) -> None:
+    other = Signer.load_or_create(tmp_path / "keys").public_key_b64
+    res = runner.invoke(app, ["verify", str(_BENIGN_CORPUS_BUNDLE), "--trusted-key", other])
+    assert res.exit_code == VERIFY_EXIT_RECEIPT_INVALID, res.output
+    assert "does not match the pinned" in res.output
+
+
+def test_trusted_key_accepts_key_file_and_default_unchanged(tmp_path: Path) -> None:
+    keyfile = tmp_path / "trusted.pub"
+    keyfile.write_text(_bundle_signer_key(_BENIGN_CORPUS_BUNDLE) + "\n", encoding="utf-8")
+    res = runner.invoke(app, ["verify", str(_BENIGN_CORPUS_BUNDLE), "--trusted-key", str(keyfile)])
+    assert res.exit_code == VERIFY_EXIT_OK, res.output
+    plain = runner.invoke(app, ["verify", str(_BENIGN_CORPUS_BUNDLE)])
+    assert plain.exit_code == VERIFY_EXIT_OK and "signer:" not in plain.output

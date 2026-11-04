@@ -704,6 +704,14 @@ def verify(
         "(digest matches), modified (path known, digest differs), or "
         "unattested (no covering receipt entry at all)",
     ),
+    trusted_key: str | None = typer.Option(
+        None,
+        "--trusted-key",
+        help="pin the expected signer: a base64 Ed25519 public key, or a path to a file "
+        "containing one. Without this the signature is checked against the key carried "
+        "inside the bundle (integrity only — a re-signed bundle would pass); with it, a "
+        "bundle signed by any other key exits 4 (receipt invalid).",
+    ),
     with_analyst: bool = typer.Option(
         False,
         "--with-analyst",
@@ -763,6 +771,17 @@ def verify(
         )
         typer.echo(f"INVALID: {reason}", err=True)
         raise typer.Exit(code=VERIFY_EXIT_RECEIPT_INVALID)
+
+    if trusted_key is not None:
+        pinned = trusted_key.strip()
+        if Path(pinned).is_file():
+            pinned = Path(pinned).read_text(encoding="utf-8").strip()
+        signer_receipt = receipt_of(read_ledger(bundle_path))
+        assert signer_receipt is not None  # guaranteed by receipt_status == "ok" above
+        if signer_receipt.body.pubkey != pinned:
+            typer.echo("INVALID: receipt signer does not match the pinned --trusted-key", err=True)
+            raise typer.Exit(code=VERIFY_EXIT_RECEIPT_INVALID)
+        typer.echo("signer: matches the pinned trusted key")
 
     typer.echo(
         f"OK: {info.records} records, findings={info.findings}, receipt_ok={info.receipt_ok}"
@@ -887,7 +906,7 @@ def watch(
         _watch_tail(target, console)
 
 
-@app.command()
+@app.command(hidden=True)
 def analyze(bundle_path: Path = typer.Argument(...)) -> None:
     """Analyst pass over a bundle. NOT YET IMPLEMENTED beyond the offline
     deterministic template — see `witness.analyst.run.analyze`."""
@@ -895,7 +914,7 @@ def analyze(bundle_path: Path = typer.Argument(...)) -> None:
                "use witness.analyst.run.analyze(..., client=None) for the offline template.")
 
 
-@app.command()
+@app.command(hidden=True)
 def score() -> None:
     """Reserved for a future G2 top-level scoring surface. Arena's own
     scoring (G-Arena) lives at `witness arena score` — see below."""
@@ -982,7 +1001,7 @@ def arena_score(
     )
 
 
-@app.command()
+@app.command(hidden=True)
 def replay(bundle_path: Path = typer.Argument(...)) -> None:
     """Golden replay-detect. not yet implemented."""
     typer.echo("replay: not yet implemented")
