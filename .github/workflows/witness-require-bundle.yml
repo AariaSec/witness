@@ -1,0 +1,67 @@
+name: witness-require-bundle
+
+# Fail-closed companion to witness-check: a pull request that changes agent-authored code must carry a signed witness
+# receipt (a bundle under runs/frozen/), otherwise it fails. witness-check verifies the bundle; this workflow makes sure
+# there is one. Scope (so ordinary maintenance is not blocked): only PRs from branches named agent/** are checked.
+# No receipt, no merge. The check is deterministic and reads only file names.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  require-bundle:
+    if: startsWith(github.head_ref, 'agent/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: A code change must carry a witness bundle
+        id: need
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          CHANGED="$(git diff --no-renames --name-only "$BASE_SHA" "$HEAD_SHA")"
+          CODE="$(printf '%s\n' "$CHANGED" | grep -E '^(src|scripts|console/src|tests)/' | head -n 20)"
+          BUNDLE="$(printf '%s\n' "$CHANGED" | grep -E '^runs/frozen/.+/bundle\.jsonl$' | head -n 5)"
+          if [ -n "$CODE" ] && [ -z "$BUNDLE" ]; then
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "<!-- witness-require-bundle -->"
+              echo "### ❌ witness-require-bundle: no receipt"
+              echo ""
+              echo "This pull request (branch \`${{ github.head_ref }}\`) changes code but carries no signed witness bundle under \`runs/frozen/\`."
+              echo "Agent-authored changes must come with the receipt of the session that produced them: **no receipt, no merge**."
+              echo ""
+              echo "Changed code files (first 20):"
+              printf '%s\n' "$CODE" | sed 's/^/- `/; s/$/`/'
+            } > "$RUNNER_TEMP/need.md"
+          else
+            echo "missing=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post the explanation on the PR
+        if: steps.need.outputs.missing == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          ID="$(gh api "repos/$REPO/issues/$PR/comments" --paginate -q '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- witness-require-bundle -->"))) | .id' | head -n1)"
+          if [ -n "$ID" ]; then gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@"$RUNNER_TEMP/need.md" > /dev/null
+          else gh api "repos/$REPO/issues/$PR/comments" -F body=@"$RUNNER_TEMP/need.md" > /dev/null; fi
+
+      - name: Fail closed
+        if: steps.need.outputs.missing == 'true'
+        run: |
+          echo "No witness bundle attached to a code change on an agent/** branch."
+          exit 1
