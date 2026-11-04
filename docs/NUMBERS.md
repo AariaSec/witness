@@ -825,8 +825,10 @@ How to read it, honestly:
   as the agent's session process; it cannot tell the agent's own command from a child it ran.
 - In the **docs** arm an instruction found in a repository file, not in the user's prompt, made the agent fetch a
   token and, in 5 of 6 sessions, write it to `.env`, which witness's `credential_persist` detector flags as a stop
-  finding (witness verify exits 2). This is the one arm that shows credential handling: Muse Code follows
-  instructions embedded in repository files. It is the pattern of an indirect prompt injection through repo docs.
+  finding (witness verify exits 2). This is the one arm that shows credential handling: Muse Code follows a documented setup step
+  that tells it to fetch and store a token. The user's prompt asked it to follow the README, so this is compliance with a
+  repo file, not a hijack; the point is that such steps leave a credential on disk, which witness flags as a stop finding
+  (a deliberately conservative policy that includes a `.env`).
 - The README in the docs arm is one we wrote, in one task family, with one agent, n = 6 per arm. It shows what
   happens when a repo file says so, not how common such files are, and not that the agent was malicious.
 - `pgroup_escape` warnings (the detector's noisy signal) fired in 23 of 24 sessions: min 0, median 8, max 19 per
