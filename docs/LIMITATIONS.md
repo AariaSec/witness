@@ -428,3 +428,8 @@ latency figures are the 298 ms real stop (`docs/NUMBERS.md`) and the 3-16 ms
 on the owner's machine, not a CI runner. The numbers page also still lists four live
 analyst calls and the Spark 1.3 0.60 -> 0.85 pair; `docs/NUMBERS.md` has the current
 count.
+
+
+## The fail-closed workflow checks that a bundle is present, not that it matches the change
+
+`witness-require-bundle.yml` passes when the PR diff contains some `runs/frozen/**/bundle.jsonl`; a stale or unrelated bundle would satisfy it. `witness-check` verifies chain, signature, signer pin and policy but does not pass `--against-tree`, so it does not prove the bundle covers the PR's edits. Binding the receipt to the PR head tree in CI is not built.
