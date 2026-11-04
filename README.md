@@ -197,8 +197,7 @@ signature.
 
 It also annotates warn-severity `pgroup_escape` findings, the detector's noisiest
 signal (a real agent's own shell or test runner detaching from the process group shows up as a
-warning in 12 of the 32 experiment sessions, and 3 to 18 times per session in the unprompted
-batch). **A pgroup warning is never cleared:** the best the model can do is label it
+warning in 12 of the 32 experiment sessions). **A pgroup warning is never cleared:** the best the model can do is label it
 `LIKELY_BENIGN` (it stays in the review queue), because the recorder's only network capture is the
 loopback decoy, so the absence of a recorded decoy read is not evidence that a detached process did
 nothing. The deterministic guard only refuses a "likely benign" label when the bundle ties the escape
