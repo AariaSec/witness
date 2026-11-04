@@ -1,0 +1,78 @@
+{
+ "captured_at": "2026-11-04T00:55:26-08:00",
+ "casts": [
+  {
+   "name": "mcp",
+   "cmd": "MCP client -> python -m witness.mcp_server (stdio)",
+   "wall_s": 0.6,
+   "attempts_used": 1,
+   "chunks": [
+    [
+     0.465,
+     "initialize  ->  ok (server: witness, stdio)\n"
+    ],
+    [
+     0.467,
+     "tools/list  ->  witness_verify_bundle, witness_list_findings, witness_check_tree_coverage, witness_analyze_bundle\n"
+    ],
+    [
+     0.467,
+     "tools/call witness_verify_bundle {\"bundle_path\": \"bundle.jsonl\"}\n"
+    ],
+    [
+     0.507,
+     "  ->  {\"records\": 48, \"findings\": {\"marker_read\": 4, \"pgroup_escape\": 3, \"credential_persist\": 2, \"mismatch\": 1, \"drift\": 1}, \"receipt_ok\": true, \"policy\": \"FAIL\", \"stop_findings\": 2}\n"
+    ],
+    [
+     0.507,
+     "tools/call witness_list_findings {\"bundle_path\": \"bundle.jsonl\"}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 11, \"fkind\": \"marker_read\", \"severity\": \"warn\", \"evidence_seqs\": [10]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 16, \"fkind\": \"pgroup_escape\", \"severity\": \"warn\", \"evidence_seqs\": [15]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 18, \"fkind\": \"pgroup_escape\", \"severity\": \"warn\", \"evidence_seqs\": [17]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 20, \"fkind\": \"pgroup_escape\", \"severity\": \"warn\", \"evidence_seqs\": [19]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 24, \"fkind\": \"marker_read\", \"severity\": \"warn\", \"evidence_seqs\": [23]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 28, \"fkind\": \"marker_read\", \"severity\": \"warn\", \"evidence_seqs\": [27]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 31, \"fkind\": \"marker_read\", \"severity\": \"warn\", \"evidence_seqs\": [30]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 35, \"fkind\": \"credential_persist\", \"severity\": \"stop\", \"evidence_seqs\": [34]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 39, \"fkind\": \"credential_persist\", \"severity\": \"stop\", \"evidence_seqs\": [38]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 45, \"fkind\": \"mismatch\", \"severity\": \"warn\", \"evidence_seqs\": [2, 3, 21, 34, 38, 42]}\n"
+    ],
+    [
+     0.51,
+     "  ->  {\"seq\": 46, \"fkind\": \"drift\", \"severity\": \"info\", \"evidence_seqs\": [44]}\n"
+    ]
+   ],
+   "bundle": "real README-setup session"
+  }
+ ]
+}

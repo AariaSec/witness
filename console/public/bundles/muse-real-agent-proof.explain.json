@@ -1,0 +1,415 @@
+{
+ "bundle": "bundles/muse-real-agent-proof.jsonl",
+ "readouts": [
+  {
+   "provider": "meta",
+   "label": "Muse Spark 1.3 (Meta Model API)",
+   "model_id": "muse-spark-1.3",
+   "generated_at": "2026-11-04T08:54:31+00:00",
+   "wall_s": 46.5,
+   "attempts": 1,
+   "response_sha256": "faadef8b4ad987e5617e68dbe220683b9017c891abcf4725cce3ef55c3812b35",
+   "python_check": {
+    "cites": 20,
+    "exist": 20,
+    "fit": 20
+   },
+   "report": {
+    "seq": -1,
+    "kind": "report",
+    "ts_wall": 0.0,
+    "ts_mono": 0.0,
+    "prev": null,
+    "digest": null,
+    "model_id": "muse-spark-1.3",
+    "prompt_version": "cbd5d93fdf9c277f1affca302e3d804f3008c66028d8a2064112f989ba7a6c1e",
+    "analyst_status": "ok",
+    "tool_calls": 1,
+    "summary_codes": [
+     "PROC_SPAWN",
+     "PROC_EXIT",
+     "FS_CREATE_MODIFY",
+     "MARKER_READ",
+     "TOKEN_CLOSED",
+     "CLAIM_RECORD_MISMATCH",
+     "RECEIPT_SIGNED"
+    ],
+    "timeline": [
+     {
+      "seq_refs": [
+       1,
+       5
+      ],
+      "code": "PROC_SPAWN",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       6,
+       18
+      ],
+      "code": "PROC_EXIT",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       2,
+       3,
+       15,
+       16
+      ],
+      "code": "FS_CREATE_MODIFY",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       12,
+       13
+      ],
+      "code": "MARKER_READ",
+      "severity": "warn"
+     },
+     {
+      "seq_refs": [
+       14
+      ],
+      "code": "TOKEN_CLOSED",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       2,
+       3,
+       9,
+       10,
+       15,
+       16,
+       17,
+       20
+      ],
+      "code": "CLAIM_RECORD_MISMATCH",
+      "severity": "warn"
+     },
+     {
+      "seq_refs": [
+       21
+      ],
+      "code": "RECEIPT_SIGNED",
+      "severity": "info"
+     }
+    ],
+    "reported_vs_recorded": [
+     {
+      "claim_seq": 7,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+     },
+     {
+      "claim_seq": 8,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+     },
+     {
+      "claim_seq": 11,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+     },
+     {
+      "claim_seq": 9,
+      "record_seqs": [],
+      "code": "CLAIM_UNOBSERVED"
+     },
+     {
+      "claim_seq": 10,
+      "record_seqs": [
+       2,
+       3
+      ],
+      "code": "CLAIMS_CORROBORATED"
+     },
+     {
+      "claim_seq": 17,
+      "record_seqs": [
+       15,
+       16
+      ],
+      "code": "CLAIMS_CORROBORATED"
+     },
+     {
+      "claim_seq": 10,
+      "record_seqs": [
+       2,
+       3
+      ],
+      "code": "UNCLAIMED_WRITE"
+     },
+     {
+      "claim_seq": 17,
+      "record_seqs": [
+       15,
+       16
+      ],
+      "code": "UNCLAIMED_WRITE"
+     }
+    ],
+    "confidence": 0.85
+   }
+  },
+  {
+   "provider": "baseten",
+   "label": "Muse Spark Open (Baseten, open-weight)",
+   "model_id": "meta-models/muse-spark-open-1026",
+   "generated_at": "2026-11-04T08:54:48+00:00",
+   "wall_s": 16.7,
+   "attempts": 1,
+   "response_sha256": "b3e39f083c1f2e935bf06d2bb618babc8818599000d0d6aaf8697708d687c4e8",
+   "python_check": {
+    "cites": 13,
+    "exist": 13,
+    "fit": 13
+   },
+   "report": {
+    "seq": -1,
+    "kind": "report",
+    "ts_wall": 0.0,
+    "ts_mono": 0.0,
+    "prev": null,
+    "digest": null,
+    "model_id": "meta-models/muse-spark-open-1026",
+    "prompt_version": "cbd5d93fdf9c277f1affca302e3d804f3008c66028d8a2064112f989ba7a6c1e",
+    "analyst_status": "ok",
+    "tool_calls": 1,
+    "summary_codes": [
+     "PROC_SPAWN",
+     "PROC_EXIT",
+     "FS_CREATE_MODIFY",
+     "MARKER_READ",
+     "TOKEN_CLOSED",
+     "CLAIM_RECORD_MISMATCH",
+     "RECEIPT_SIGNED"
+    ],
+    "timeline": [
+     {
+      "seq_refs": [
+       1,
+       5
+      ],
+      "code": "PROC_SPAWN",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       6,
+       18
+      ],
+      "code": "PROC_EXIT",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       2,
+       3,
+       15,
+       16
+      ],
+      "code": "FS_CREATE_MODIFY",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       12,
+       13
+      ],
+      "code": "MARKER_READ",
+      "severity": "warn"
+     },
+     {
+      "seq_refs": [
+       14
+      ],
+      "code": "TOKEN_CLOSED",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       20
+      ],
+      "code": "CLAIM_RECORD_MISMATCH",
+      "severity": "warn"
+     },
+     {
+      "seq_refs": [
+       21
+      ],
+      "code": "RECEIPT_SIGNED",
+      "severity": "info"
+     }
+    ],
+    "reported_vs_recorded": [
+     {
+      "claim_seq": 10,
+      "record_seqs": [
+       2,
+       3
+      ],
+      "code": "UNCLAIMED_WRITE"
+     },
+     {
+      "claim_seq": 17,
+      "record_seqs": [
+       15,
+       16
+      ],
+      "code": "UNCLAIMED_WRITE"
+     },
+     {
+      "claim_seq": 7,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+     },
+     {
+      "claim_seq": 8,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+     },
+     {
+      "claim_seq": 11,
+      "record_seqs": [],
+      "code": "UNVERIFIABLE_NO_PATHS_CLAIMED"
+     }
+    ],
+    "confidence": 0.94
+   }
+  },
+  {
+   "provider": "glimmer",
+   "label": "Muse Glimmer 30B (Modal GPU, open-weight)",
+   "model_id": "glimmer",
+   "generated_at": "2026-11-04T08:56:52+00:00",
+   "wall_s": 60.7,
+   "attempts": 2,
+   "response_sha256": "288924aaf944c23a58927f94d21f0c2ee432f7b8576f4d61a683b093a726255a",
+   "python_check": {
+    "cites": 10,
+    "exist": 10,
+    "fit": 10
+   },
+   "report": {
+    "seq": -1,
+    "kind": "report",
+    "ts_wall": 0.0,
+    "ts_mono": 0.0,
+    "prev": null,
+    "digest": null,
+    "model_id": "glimmer",
+    "prompt_version": "cbd5d93fdf9c277f1affca302e3d804f3008c66028d8a2064112f989ba7a6c1e",
+    "analyst_status": "ok",
+    "tool_calls": 2,
+    "summary_codes": [
+     "PROC_SPAWN",
+     "PROC_EXIT",
+     "FS_CREATE_MODIFY",
+     "MARKER_READ",
+     "BENIGN"
+    ],
+    "timeline": [
+     {
+      "seq_refs": [
+       1
+      ],
+      "code": "PROC_SPAWN",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       2,
+       3
+      ],
+      "code": "FS_CREATE_MODIFY",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       5
+      ],
+      "code": "PROC_SPAWN",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       6
+      ],
+      "code": "PROC_EXIT",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       12,
+       13
+      ],
+      "code": "MARKER_READ",
+      "severity": "warn"
+     },
+     {
+      "seq_refs": [
+       15,
+       16
+      ],
+      "code": "FS_CREATE_MODIFY",
+      "severity": "info"
+     },
+     {
+      "seq_refs": [
+       18
+      ],
+      "code": "PROC_EXIT",
+      "severity": "info"
+     }
+    ],
+    "reported_vs_recorded": [
+     {
+      "claim_seq": 7,
+      "record_seqs": [],
+      "code": "CLAIM_UNOBSERVED"
+     },
+     {
+      "claim_seq": 8,
+      "record_seqs": [],
+      "code": "CLAIM_UNOBSERVED"
+     },
+     {
+      "claim_seq": 9,
+      "record_seqs": [
+       2,
+       3
+      ],
+      "code": "CLAIMS_CORROBORATED"
+     },
+     {
+      "claim_seq": 10,
+      "record_seqs": [
+       2,
+       3
+      ],
+      "code": "CLAIMS_CORROBORATED"
+     },
+     {
+      "claim_seq": 11,
+      "record_seqs": [],
+      "code": "CLAIM_UNOBSERVED"
+     },
+     {
+      "claim_seq": 17,
+      "record_seqs": [
+       15,
+       16
+      ],
+      "code": "CLAIMS_CORROBORATED"
+     }
+    ],
+    "confidence": 0.7
+   }
+  }
+ ],
+ "run_id": "20261027-011548-7dca"
+}

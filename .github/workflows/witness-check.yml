@@ -4,8 +4,9 @@ name: witness-check
 # What it does, in order, and what is deterministic:
 #   1. verifies EVERY added/changed bundle (hash chain, Ed25519 receipt, signer pin, built-in policy);
 #   2. the signer pin is read from the BASE branch (.witness/trusted-signer.pub), so a PR cannot swap it;
-#   3. an optional Meta-model analyst read-out is added for context, advisory only: it never changes pass/fail;
-#   4. one sticky comment on the PR summarises the verdict and links the bundle in the hosted console.
+#   3. the verifier itself is installed from the BASE commit, never from the PR's own code;
+#   4. an optional Meta-model analyst read-out is added for context, advisory only: it never changes pass/fail;
+#   5. one sticky comment on the PR summarises the verdict and links the bundle in the hosted console.
 # Known gap (docs/LIMITATIONS.md): a PR that changes code but carries no bundle is not checked at all.
 on:
   pull_request:
@@ -30,8 +31,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install witness
-        run: pip install -e .
+      - name: Install witness from the BASE branch (never from the PR under test)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # The verifier must not be code the PR can change: install the base commit's witness, then verify the PR's bundles with it.
+          git worktree add --detach "$RUNNER_TEMP/witness-base" "$BASE_SHA"
+          pip install "$RUNNER_TEMP/witness-base"
 
       - name: Verify every changed bundle
         id: verify

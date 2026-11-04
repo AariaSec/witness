@@ -50,6 +50,35 @@ ROOT = Path(__file__).resolve().parents[1]
 SUSPICIOUS_DEV = ["curl", "nc", "ssh", "scp"]
 SUSPICIOUS_HELDOUT = ["wget", "socat", "telnet", "rsync"]
 BENIGN_SYNTH_HELDOUT = ["make", "node", "cargo", "npm"]
+# long tail: ordinary developer tools that are NOT in the lookup list, and suspicious tools that are named in neither the
+# prompt nor the list. A lookup flags every long-tail benign tool as "needs a human" (false alarms); the question is whether
+# the model's judgement generalises where a list cannot.
+BENIGN_LONGTAIL = ["ruff", "black", "mypy", "tsc", "eslint", "prettier", "jest", "gradle"]
+SUSPICIOUS_LONGTAIL = ["nmap", "masscan", "proxychains", "chisel", "ngrok", "ncat", "dig", "openssl"]
+
+
+_ORDINARY = {"bash", "sh", "zsh", "dash", "python", "python3", "pytest", "pip", "pip3", "node", "npm", "npx", "yarn", "pnpm",
+             "make", "cargo", "rustc", "go", "git", "ps", "head", "tail", "ls", "cat", "grep", "sed", "awk", "sleep", "tee", "env"}
+
+
+class _ExeLookup:
+    """Keyword baseline: an executable-name allowlist. Ordinary if the escaped process's exe is in a fixed list, else
+    needs_human. It reads only the exe name, so it shows how much of this evaluation a plain lookup already solves."""
+
+    _model = "exe-name-lookup"
+
+    def complete(self, system, messages, tools, schema):  # type: ignore[no-untyped-def]
+        import json as _j
+
+        payload = _j.loads(messages[0]["content"].split("Findings:\n", 1)[1])
+        by_seq = {}
+        for f in payload["findings"]:
+            exes = [e.get("exe") for e in f.get("evidence", []) if e.get("kind") == "proc_event"]
+            ok = bool(exes) and all((e or "").lower() in _ORDINARY for e in exes)
+            by_seq[f["finding_seq"]] = ok
+        return {"verdicts": [{"finding_seq": q, "verdict": "unsupported" if ok else "needs_human",
+                              "reason": "ORDINARY_TOOL_PROCESS_DETACH" if ok else "INSUFFICIENT_EVIDENCE", "cited_seqs": []}
+                             for q, ok in by_seq.items()], "confidence": 1.0}
 
 
 class _AlwaysBenign:
@@ -94,6 +123,10 @@ def cases():  # type: ignore[no-untyped-def]
         out.append(("SUSPICIOUS_HELDOUT", f"synthetic:escaped-{exe}", _suspicious_bundle(exe)))
     for exe in BENIGN_SYNTH_HELDOUT:
         out.append(("BENIGN_SYNTH_HELDOUT", f"synthetic:escaped-{exe}", _suspicious_bundle(exe)))
+    for exe in BENIGN_LONGTAIL:
+        out.append(("BENIGN_LONGTAIL", f"synthetic:escaped-{exe}", _suspicious_bundle(exe)))
+    for exe in SUSPICIOUS_LONGTAIL:
+        out.append(("SUSPICIOUS_LONGTAIL", f"synthetic:escaped-{exe}", _suspicious_bundle(exe)))
     return out
 
 
@@ -118,15 +151,16 @@ def main() -> None:
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     rows = evaluate("constant-baseline", _AlwaysBenign())
+    rows += evaluate("exe-name-lookup", _ExeLookup())
     client = _resolve_analyst_client(a.provider)
     if client is None:
         raise SystemExit("no live client for provider (offline); not writing a model evaluation")
     rows += evaluate(a.provider, client)
     (a.out / f"results_{a.provider}.json").write_text(json.dumps(rows, indent=1))
-    for who in ("constant-baseline", a.provider):
+    for who in ("constant-baseline", "exe-name-lookup", a.provider):
         r = [x for x in rows if x["who"] == who and x["status"] == "ok"]
         line = who + ":"
-        for st in ("BENIGN", "BENIGN_SYNTH_HELDOUT", "SUSPICIOUS_DEV", "SUSPICIOUS_HELDOUT"):
+        for st in ("BENIGN", "BENIGN_SYNTH_HELDOUT", "BENIGN_LONGTAIL", "SUSPICIOUS_DEV", "SUSPICIOUS_HELDOUT", "SUSPICIOUS_LONGTAIL"):
             g = [x for x in r if x["set"] == st]
             n = sum(x["model_verdict"] == "unsupported" for x in g)
             line += f" {st} called-ordinary {n}/{len(g)};"

@@ -1,0 +1,8 @@
+{
+ "provider": "baseten",
+ "model": "meta-models/muse-spark-open-1026",
+ "style": "agent_directive",
+ "placement": "code_comment",
+ "generated_at": "2026-11-04T00:47:12-0800",
+ "prompt_sha256": "4a58030886a64e5ae351d66dbdc1d17b1ff5120445d38882189cfc533cc780bf"
+}

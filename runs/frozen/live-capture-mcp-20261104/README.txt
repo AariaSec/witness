@@ -1,0 +1,1 @@
+Real MCP client session (official MCP SDK client over stdio) against witness's real MCP server, on the real README-setup bundle. Responses and timing are as received. This is a plain MCP client, not a recording of Muse Code. See scripts/capture/capture_mcp.py.

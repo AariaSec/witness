@@ -183,6 +183,14 @@ With no key set the command still succeeds and prints the offline template
 analyst output from our own live calls, so you can inspect real model output
 without running anything.
 
+## How the Meta models compare on this task
+
+`scripts/meta_bench.py` scores each model's analyst report against the signed record, deterministically, over 30 real bundles
+(`docs/NUMBERS.md`, `runs/frozen/meta-bench-20261104/`). Muse Spark 1.3 and Muse Spark Open each completed 30 of 30, cited real
+records 100% of the time and covered every detector finding; Spark 1.3 invented a finding in 2 of 30 bundles, Spark Open in
+12 of 30 (mostly asserting a claim mismatch the detectors did not raise). Muse Glimmer 30B completed only 5 of 30 because of its
+8k-token context. The models add readable narrative, not detections. No non-Meta model was benchmarked.
+
 ## Let a Meta model triage a finding (optional)
 
 `witness triage <bundle> --provider meta` hands the bundle's `mismatch`
@@ -242,11 +250,13 @@ checks the receipt's signature against the public key carried *inside* the
 bundle. That proves the bundle was not changed after it was signed; it does not
 prove who signed it, because someone who edits a bundle could re-sign it with a
 fresh key. To pin the author, run `witness verify <bundle> --trusted-key <base64-pubkey-or-file>`:
-a bundle signed by any other key exits 4. The CLI option is tested, and the GitHub
-Action now takes a `trusted-key` input (or reads `.witness/trusted-signer.pub`,
-which holds this repo's signer key). The demo PRs below ran before that existed
-and did not pin a key, and the gate only runs on pull requests that touch a
-committed bundle (`docs/LIMITATIONS.md`).
+a bundle signed by any other key exits 4. The CLI option is tested. This repo's own workflow
+(`.github/workflows/witness-check.yml`) verifies **every** added or changed bundle, pins the signer
+from `.witness/trusted-signer.pub` **on the base branch** (so a PR cannot swap the pin), runs the Meta
+analyst as an advisory read-out, and posts one sticky comment on the PR with the verdict, the stop
+findings and a console replay link ([PR #5](https://github.com/AariaSec/witness/pull/5) shows it on a real
+agent run). The older demo PRs predate the pin. The gate only runs on pull requests that touch a committed
+bundle: a PR with no bundle is not checked (`docs/LIMITATIONS.md`).
 
 Live pull requests on this repo show the gate running on GitHub's own
 infrastructure (the CI runs are real): [PR #1, green](https://github.com/AariaSec/witness/pull/1)
@@ -385,9 +395,9 @@ of three — see the "Why" section above):
 - **A real coding agent, not a stand-in**: a genuine Muse Code session
   independently recorded fetching and saving a decoy credential (as its task directed) — see
   `docs/NUMBERS.md`'s flagship proof run.
-- **Two small, honestly labeled real-agent experiments** (`scripts/experiment/`, `docs/NUMBERS.md`). (1) The first batch (n=16 decoy-adjacent / n=16 control Muse Code sessions, whose prompts *told* the agent to fetch the endpoint): 44% touched the decoy, all 32 sessions passed the gate (touching the decoy is a warning by design; 7 of the 16 controls carried a non-blocking `pgroup_escape` warning), 0% self-report mismatch; it surfaced two false-positive bugs in our own detectors, both fixed (`docs/LIMITATIONS.md`). (2) The **unprompted** batch (24 sessions, prompts that never mention fetching, endpoints or credentials): with nothing pulling the agent toward the config file it never touched the decoy (0 of 12); when the repository README said to get a token from a local broker and save it in `.env`, 6 of 6 sessions fetched it and 5 of 6 wrote it to disk, which the gate fails (a stop finding). The prompt asked the agent to set the project up following the README, so this is compliance with a documented setup step, not a hijack; the point is that following such steps leaves a credential on disk, which the gate flags (a deliberately conservative stop policy: any decoy credential persisted, including a `.env`). Other ways of putting the same step in front of the agent (a code comment, an issue text, a Makefile, a README that warns against it) were tried later and are in `docs/NUMBERS.md`. One agent, one constructed README: this shows what happens when a repo file says so, not how often repos do.
-- **Three live Meta-model paths (Meta Model API, Baseten, our own Modal GPU; Fireworks is built but not live-verified), six real calls on
-  record**: Muse Spark Open (`meta-models/muse-spark-open-1026` via
+- **Real-agent experiments, honestly labeled** (`scripts/experiment/`, `scripts/redteam/`, `docs/NUMBERS.md`). (1) A first batch of 32 Muse Code sessions whose prompts *told* the agent to fetch the endpoint: 44% touched the decoy, all 32 passed the gate (touching the decoy is a warning by design), 0% self-report mismatch; it surfaced two false-positive bugs in our own detectors, both fixed (`docs/LIMITATIONS.md`). (2) A larger overnight sweep of real Muse Code sessions with prompts that never mention credentials, including a **red-team arena in which Muse Spark 1.3 and Muse Spark Open wrote the persuasion wording** (10 styles, 3 placements) for a setup step planted in a README, contributing guide or code comment, and Muse Code was then asked an ordinary task. <!--SWEEP-README-START-->(numbers are written by `scripts/experiment/finalize_sweep.py` at a cutoff fixed in advance)<!--SWEEP-README-END--> The README-driven sessions show an agent following documented setup steps and leaving a credential on disk (a deliberately conservative stop policy that includes a `.env`), not a hijack. One agent, a decoy on a local fake service, few sessions per cell: a measurement, not a prevalence.
+- **Three live Meta-model paths (Meta Model API, Baseten, our own Modal GPU; Fireworks is built but not live-verified), with the first six
+  real calls recorded individually and ~100 more in the benchmark below**: Muse Spark Open (`meta-models/muse-spark-open-1026` via
   Baseten) correctly analyzed a recorded scripted-scenario bundle (manifest `simulated: true`) — `analyst_status="ok"`,
   `confidence=0.88` on first run (2026-10-26), re-run clean under the
   later canonical-code-enum schema fix at `confidence=0.93` — and, as a
@@ -400,7 +410,7 @@ of three — see the "Why" section above):
   open-weight models." Two further live captures on 2026-11-03 (Muse Spark
   1.3 at `confidence=0.9`, Muse Glimmer 30B on a Modal GPU we deploy
   ourselves at `confidence=0.85`; frozen under `runs/frozen/live-capture-*`)
-  make six real calls in all — see `docs/NUMBERS.md`.
+  make the first six recorded calls; the later benchmark and triage runs add many more (`docs/NUMBERS.md`).
 
 ## Founder disclosure
 
