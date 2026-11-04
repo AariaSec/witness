@@ -91,8 +91,9 @@ what's solid versus what's a placeholder.
   default it proves integrity, not authorship (whoever edits a bundle can re-sign it with their own key).
   `witness verify --trusted-key <key|file>` pins the expected signer (mismatch exits 4). As of 2026-11-04 this repo's
   `witness-check` workflow pins the key from `.witness/trusted-signer.pub` on the **base branch** and verifies every
-  added or changed bundle (it used to check only the first). Still open: the workflow triggers only when a PR touches
-  `runs/frozen/**/bundle.jsonl`, so a PR that changes code but carries no bundle is not checked at all, and the pin is
+  added or changed bundle (it used to check only the first). Still open: the verifier workflow triggers only when a PR touches
+  `runs/frozen/**/bundle.jsonl`; a companion workflow (`witness-require-bundle`, PR #6) fails a code change with no bundle, but only on branches named
+  `agent/**`, so a PR from any other branch name that carries no bundle is still not checked, and the pin is
   only as strong as who can change the base branch's `.witness/trusted-signer.pub`. The demo PRs #1 to #4 ran before the pin.
 - **The console's receipt verification didn't match what the backend
   actually signed, for every Receipt v0.2 bundle** (fixed 2026-10-27,

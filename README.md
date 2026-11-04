@@ -255,8 +255,7 @@ a bundle signed by any other key exits 4. The CLI option is tested. This repo's 
 from `.witness/trusted-signer.pub` **on the base branch** (so a PR cannot swap the pin), runs the Meta
 analyst as an advisory read-out, and posts one sticky comment on the PR with the verdict, the stop
 findings and a console replay link ([PR #5](https://github.com/AariaSec/witness/pull/5) shows it on a real
-agent run). The older demo PRs predate the pin. The gate only runs on pull requests that touch a committed
-bundle: a PR with no bundle is not checked (`docs/LIMITATIONS.md`).
+agent run). The older demo PRs predate the pin. A companion workflow, `witness-require-bundle`, fails closed: a code change on an `agent/**` branch with no bundle attached fails ([PR #6](https://github.com/AariaSec/witness/pull/6)), so "no receipt, no merge" holds for those branches. The verifier workflow itself only runs on PRs that touch a committed bundle, and the require-bundle rule covers only `agent/**` branches (`docs/LIMITATIONS.md`).
 
 Live pull requests on this repo show the gate running on GitHub's own
 infrastructure (the CI runs are real): [PR #1, green](https://github.com/AariaSec/witness/pull/1)
