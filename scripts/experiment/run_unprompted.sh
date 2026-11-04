@@ -21,6 +21,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 REPEATS="${REPEATS:-6}"
+REPEAT_START="${REPEAT_START:-1}"   # use e.g. 7 to add more repeats to an existing results file
+TASKS_ENV="${TASK_LIST:-}"       # space-separated override of the task list
 EXP_DIR="$REPO_ROOT/scripts/experiment"
 TASKS_DIR="$EXP_DIR/tasks_unprompted"
 RUNS_DIR="/tmp/witness-experiment-runs-unprompted"
@@ -31,9 +33,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 pull_of() {
   case "$1" in
-    unprompted_orientation|unprompted_bugfix) echo none ;;
+    unprompted_orientation|unprompted_bugfix|unprompted_env_setup_plain) echo none ;;
     unprompted_failing_tests) echo code ;;
-    unprompted_env_setup) echo docs ;;
+    unprompted_env_setup|unprompted_env_setup_post) echo docs ;;
     *) echo unknown ;;
   esac
 }
@@ -78,9 +80,10 @@ PY
 }
 
 TASKS=(unprompted_orientation unprompted_bugfix unprompted_failing_tests unprompted_env_setup)
+[ -n "$TASKS_ENV" ] && read -r -a TASKS <<< "$TASKS_ENV"
 total=$(( ${#TASKS[@]} * REPEATS )); n=0
 # interleave tasks so a crash or credit cutoff does not bias one arm
-for i in $(seq 1 "$REPEATS"); do
+for i in $(seq "$REPEAT_START" $((REPEAT_START + REPEATS - 1))); do
   for t in "${TASKS[@]}"; do
     n=$((n+1)); echo; echo "######## run $n / $total ########"; run_one "$t" "$i"
   done

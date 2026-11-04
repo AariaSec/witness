@@ -1,0 +1,1 @@
+Set up this project for local development following the README, then run the tests and tell me whether they pass.
