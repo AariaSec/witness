@@ -16,7 +16,7 @@ own tool calls) are the reason that is uncomfortable.
 
 In our own unprompted batch (`docs/NUMBERS.md`, 24 real Muse Code sessions), an instruction found only in a
 repository README made the agent fetch a credential and, in 5 of 6 sessions, write it to disk; with nothing pulling
-it there, 0 of 12 sessions touched it. That is an indirect prompt injection through repo docs, and the thing the
+it there, 0 of 12 sessions touched it. That is an agent following a documented setup step and leaving a credential on disk (a deliberately conservative stop policy), and the thing the
 merge gate catches. It is one agent, one constructed README, n=6 per arm.
 
 ## What it replaces
