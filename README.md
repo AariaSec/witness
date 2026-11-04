@@ -242,11 +242,13 @@ checks the receipt's signature against the public key carried *inside* the
 bundle. That proves the bundle was not changed after it was signed; it does not
 prove who signed it, because someone who edits a bundle could re-sign it with a
 fresh key. To pin the author, run `witness verify <bundle> --trusted-key <base64-pubkey-or-file>`:
-a bundle signed by any other key exits 4. The CLI option is tested, and the GitHub
-Action now takes a `trusted-key` input (or reads `.witness/trusted-signer.pub`,
-which holds this repo's signer key). The demo PRs below ran before that existed
-and did not pin a key, and the gate only runs on pull requests that touch a
-committed bundle (`docs/LIMITATIONS.md`).
+a bundle signed by any other key exits 4. The CLI option is tested. This repo's own workflow
+(`.github/workflows/witness-check.yml`) verifies **every** added or changed bundle, pins the signer
+from `.witness/trusted-signer.pub` **on the base branch** (so a PR cannot swap the pin), runs the Meta
+analyst as an advisory read-out, and posts one sticky comment on the PR with the verdict, the stop
+findings and a console replay link ([PR #5](https://github.com/AariaSec/witness/pull/5) shows it on a real
+agent run). The older demo PRs predate the pin. The gate only runs on pull requests that touch a committed
+bundle: a PR with no bundle is not checked (`docs/LIMITATIONS.md`).
 
 Live pull requests on this repo show the gate running on GitHub's own
 infrastructure (the CI runs are real): [PR #1, green](https://github.com/AariaSec/witness/pull/1)

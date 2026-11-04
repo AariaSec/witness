@@ -78,24 +78,14 @@ what's solid versus what's a placeholder.
   unit-tested only. It never edits a signed bundle and never changes `witness verify`'s
   exit code, so the merge gate is unchanged.
 
-- **Receipt signatures are self-certifying unless a key is pinned
-  (disclosed 2026-11-03).** `actions/receipt.py::verify_receipt` verifies the
-  signature against the public key embedded in the receipt body. That proves
-  integrity (the signed record was not altered), not authorship: whoever edits
-  a bundle can re-sign it with their own key and the default check still
-  passes. `witness verify --trusted-key <key|file>` now pins the expected
-  signer (mismatch exits 4; covered by `tests/unit/test_cli_verify.py`), but
-  it is opt-in: the GitHub Action accepts a `trusted-key` input (or reads
-  `.witness/trusted-signer.pub` from the checkout, which a PR could itself edit unless that
-  file is protected by CODEOWNERS/branch protection), the demo PRs ran before it existed,
-  and
-  `.github/workflows/witness-check.yml` neither passes `--against-tree` nor
-  fails a PR that carries no bundle (it only triggers when a PR touches
-  `runs/frozen/**/bundle.jsonl`). So the merge gate shown in the video proves a
-  recorded bundle is internally consistent and unaltered since signing, not
-  that the signer was trusted. The workflow also verifies only the first changed
-  bundle (`head -n1`), so a PR touching several bundles has only the first one checked.
-
+- **Receipt signatures are self-certifying unless a key is pinned (disclosed 2026-11-03, partly closed 2026-11-04).**
+  `actions/receipt.py::verify_receipt` verifies the signature against the public key embedded in the receipt body, so by
+  default it proves integrity, not authorship (whoever edits a bundle can re-sign it with their own key).
+  `witness verify --trusted-key <key|file>` pins the expected signer (mismatch exits 4). As of 2026-11-04 this repo's
+  `witness-check` workflow pins the key from `.witness/trusted-signer.pub` on the **base branch** and verifies every
+  added or changed bundle (it used to check only the first). Still open: the workflow triggers only when a PR touches
+  `runs/frozen/**/bundle.jsonl`, so a PR that changes code but carries no bundle is not checked at all, and the pin is
+  only as strong as who can change the base branch's `.witness/trusted-signer.pub`. The demo PRs #1 to #4 ran before the pin.
 - **The console's receipt verification didn't match what the backend
   actually signed, for every Receipt v0.2 bundle** (fixed 2026-10-27,
   found while capturing video clips, not by inspection). `ReceiptBody.
