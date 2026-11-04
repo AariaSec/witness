@@ -190,9 +190,12 @@ def main() -> None:
     ap.add_argument("--no-copy", action="store_true")
     ap.add_argument("--write-docs", action="store_true", help="update the marked regions in NUMBERS.md, README.md, WHO_PAYS.md and drafts.txt")
     a = ap.parse_args()
+    all_rows = list(csv.DictReader(open(CSV)))
+    failed = sum(1 for r in all_rows if r["exit_code"] == "RECORD_FAILED")
     rows = load(CSV, a.cutoff)
     copied = 0 if a.no_copy else copy_bundles(rows)
-    text = (f"Data cutoff {a.cutoff} (local time); every session started at or before it counts. {len(rows)} sessions"
+    missing = sum(1 for r in rows if not (FROZEN / r["run_id"] / "bundle.jsonl").exists() and not (TMP_RUNS / r["run_id"] / "bundle.jsonl").exists())
+    text = (f"Data cutoff {a.cutoff} (local time); every session started at or before it counts. {len(rows)} sessions counted; {failed} RECORD_FAILED rows in the file (reported, not counted); {missing} counted sessions have no bundle on disk"
             f"{'' if a.no_copy else f', {copied} new bundles copied to runs/frozen'}.\n\n{arm_table(rows)}\n\n"
             f"Red-team heat map:\n\n{heatmap(rows)}\n\n{consistency(rows)}\n")
     if a.write_docs:

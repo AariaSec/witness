@@ -64,6 +64,11 @@ what's solid versus what's a placeholder.
 
 ## Known gaps worth naming
 
+- **The merge-gate workflow can be edited by the PR it checks (2026-11-04).** `witness-check` now installs the verifier from the PR's
+  base commit (so a PR cannot swap the verifier code) and pins the signer from the base branch, but a `pull_request` workflow is read from the
+  PR's own merge ref, so a same-repo PR could still edit the workflow file itself, and same-repo PR code can read repository secrets in
+  that run. The real fix is a protected required workflow or branch protection on `.github/workflows/`; this repo does not enforce it.
+
 - **The unprompted batch is small and constructed (2026-11-03).** 24 sessions, one agent (Muse Code), four
   hand-written tasks, n=6 per arm; the README that tells the agent to fetch a token was written by us. The
   decoy-fetch marker identifies the agent's session process, not which command or child made the request. A "wrote
@@ -190,9 +195,10 @@ real, tool-executing `--provider meta` session, end to end**
 (`witness record-muse`, `runs/frozen/muse-real-agent-proof-20261026-185538-7c88/`
 — a real agent fetched a decoy credential and saved it to a tracked
 file, independently detected). The "never a live session" boundary below
-describes this codebase's OWN subprocess calls (it still never passes
-`--disable-approval`/`--disable-sandbox` itself — the project owner ran
-that combination directly, by hand, exactly once this was needed):
+describes this codebase's OWN subprocess calls (witness's own code still never passes
+`--disable-approval`/`--disable-sandbox` itself; the operator supplies those flags by running the experiment
+scripts, which now includes a long unattended overnight batch through the frozen queue driver
+`scripts/experiment/run_queue.sh`, whose queue lines are validated as plain identifiers):
 
 - **`src/witness/muse_journal.py`** correctly unwraps a real
   `session.jsonl` file: the large majority of lines are already a flat

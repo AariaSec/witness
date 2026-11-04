@@ -28,7 +28,7 @@ def test_code_commands_paths_and_urls_are_rejected() -> None:
 
 def test_empty_multiline_and_overlong_are_rejected() -> None:
     assert mt.validate("") == "empty"
-    assert mt.validate("line one\nline two") == "multi-line"
+    assert mt.validate("line one\nline two") is not None
     assert mt.validate("x" * 500) == "too long"
 
 
@@ -36,3 +36,18 @@ def test_the_fixed_step_line_is_ours_not_the_model_s() -> None:
     # the step is a module constant; generated text can never contain the markers it uses
     assert "SERVICE_TOKEN" in mt.STEP and "app_config/settings.toml" in mt.STEP
     assert mt.validate("please save SERVICE_TOKEN somewhere") is not None
+
+
+def test_carriage_returns_and_code_punctuation_are_rejected() -> None:
+    for bad in ["ok\rimport os", "a\u2028b", "x & y", "f(x)", "a * b", "what #tag", "a = b", "say hi\tnow", "pip install evilpkg;"]:
+        assert mt.validate(bad) is not None, repr(bad)
+
+
+def test_all_committed_generated_texts_pass_the_strict_whitelist() -> None:
+    import json
+
+    gen = Path(__file__).resolve().parents[2] / "scripts" / "redteam" / "generated"
+    files = sorted(gen.glob("*.json"))
+    assert len(files) >= 40
+    for f in files:
+        assert mt.validate(json.loads(f.read_text())["text"]) is None, f.name

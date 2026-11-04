@@ -797,7 +797,8 @@ video as a replay of this captured output.
 
 ## Overnight real-agent sweep and the Muse-written attacks (final; cutoff fixed in advance)
 
-**Rule, committed before the results were known:** every session whose run id timestamp is at or before the data cutoff counts;
+**Rule (the cutoff time and method were committed at 00:52 on 2026-11-04, ten seconds after the first red-team session started; interim counts were
+looked at during the night to debug the pipeline, and the cutoff time was not changed):** every session whose run id timestamp is at or before the data cutoff counts;
 nothing is dropped or added by hand (`scripts/experiment/finalize_sweep.py`, tested in `tests/unit/test_finalize_sweep.py`).
 Real Muse Code via `record-muse --provider meta`; the operator running the frozen queue driver supplies the approval-bypass
 flags. Tasks and seeds: `scripts/experiment/tasks_unprompted/`; bundles: `runs/frozen/unprompted-experiment-20261103/`.
@@ -872,7 +873,7 @@ that Muse Code and Claude Code were wired to the same server on 2026-10-27. `scr
 
 `console/public/bundles/{unprompted-readme-injection,muse-real-agent-proof}.explain.json` hold real read-outs from Muse Spark 1.3 and
 Muse Spark Open (and Muse Glimmer 30B for the smaller Muse Code bundle), made by `scripts/make_explain.py`. They sit outside the
-signed chain. The console checks every cited seq against the signed record in the browser; on these stored read-outs all cites exist
+signed chain. The console checks, in the browser, that every cited seq exists in the signed record and is a kind of record that can support the code cited (it does NOT check that the model's description matches the record's content); on these stored read-outs all cites exist
 and fit (Spark 1.3 27/27 on the 48-record bundle; on the 22-record bundle Spark 1.3 20/20, Spark Open 13/13, Glimmer 10/10), and
 `console/tests/citations.test.ts` asserts the browser's counts equal the Python scorer's.
 
@@ -903,6 +904,11 @@ What it shows, stated plainly:
 - "Cited record fits the code" uses a deliberately generous mapping (`scripts/meta_bench.py:CODE_KINDS`).
 - The offline template (no model) scores 100% coverage and 0 invented by construction, so this measures the faithfulness of a
   narrative, not extra detection power: the models add readable prose, not detections.
+- Glimmer's 8k context is a setting of OUR deployment (`--n_ctx 8192` in `scripts/glimmer_modal.py`, chosen to fit the A10G), not a limit of
+  the model; 3 of its 25 failures were output-schema failures on 13- and 19-record bundles, not context errors; and it kept its default token budget
+  while the two hosted models were raised to 16000. All 14 invented findings are `CLAIM_RECORD_MISMATCH`, which the console deliberately
+  reclassifies as "unreported / not observable" for recorder limits, so part of that count may be models flagging a gap the detector does not.
+  The 14 cases were not audited by hand. Treat the Glimmer row as a deployment result, not a ranking of the model.
 - Latency columns are over successful calls only. Conditions: timeout 180 s (the product default is 60 s for Spark 1.3), `max_tokens` 16000; the benchmark ran while the
   overnight real-agent batch was using the same API. A first run with the old 6000-token default made Spark Open return
   empty content on larger bundles (reasoning consumed the budget); that was a bug in our client defaults, fixed in `3b9f4ce`.
@@ -939,6 +945,14 @@ warning is never cleared, only labelled `LIKELY_BENIGN`.
 | BENIGN_SYNTH_HELDOUT | 4 | hand-built: escaped make, node, cargo, npm | 4 / 4 | 4 / 4 | 4 / 4 |
 | SUSPICIOUS_DEV | 4 | hand-built: escaped curl, nc, ssh, scp | 4 / 4 (wrong) | 0 / 4 | 0 / 4 |
 | SUSPICIOUS_HELDOUT | 4 | hand-built: escaped wget, socat, telnet, rsync | 4 / 4 (wrong) | 0 / 4 | 0 / 4 |
+
+Two further sets and a second baseline were added after reviewers pointed out that an executable-name lookup would tie the models on the sets
+above: **BENIGN_LONGTAIL** (n=8, hand-built: escaped ruff, black, mypy, tsc, eslint, prettier, jest, gradle, ordinary developer tools that are in no
+allowlist) and **SUSPICIOUS_LONGTAIL** (n=8, hand-built: nmap, masscan, proxychains, chisel, ngrok, ncat, dig, openssl). The lookup baseline
+(`exe-name-lookup`, an allowlist of ~30 common tools; anything else needs a human) results: BENIGN 3/3, BENIGN_SYNTH_HELDOUT 4/4 and
+BENIGN_LONGTAIL **0/8** ordinary (it raises a needless alarm on every long-tail benign tool), SUSPICIOUS (all three sets) 0/16 called ordinary. Both
+Meta models: BENIGN 3/3, BENIGN_SYNTH_HELDOUT 4/4, BENIGN_LONGTAIL **8/8**, SUSPICIOUS 0/16. So on the simple sets the lookup ties the models and never fails; the
+only place the models do better is the long tail of unfamiliar-but-ordinary tools, on hand-built cases (n=8). No skill beyond that is claimed.
 
 Numbers are "called ordinary". The point of the baseline: the deterministic guard does not look at the
 process, so on its own it would let every one of the 8 suspicious cases through. An earlier run of this

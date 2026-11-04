@@ -71,14 +71,19 @@ BAD = re.compile(
 )
 
 
+SAFE = re.compile(r"^[A-Za-z0-9 ,.!?'-]+$")
+
+
 def validate(text: str) -> str | None:
-    """Return a reason if the model text is not acceptable prose, else None."""
+    """Return a reason if the model text is not acceptable prose, else None. Strict whitelist: letters, digits, space and
+    , . ! ? ' - only (no line breaks of any kind, no punctuation that can start code), plus the older deny-list as a second
+    check. Every committed text is also reviewed by a human before a build is queued."""
     if not isinstance(text, str) or not text.strip():
         return "empty"
     if len(text) > 420:
         return "too long"
-    if "\n" in text.strip():
-        return "multi-line"
+    if not SAFE.match(text.strip()):
+        return "contains characters outside the prose whitelist"
     if BAD.search(text):
         return "contains code-like or path-like content"
     return None
@@ -177,6 +182,8 @@ def build() -> None:
         shutil.copytree(BASE_SEED, d / "seed")
         for path, body in doc_for(rec).items():
             (d / "seed" / path).write_text(body)
+        if rec["benign"]:
+            (d / "seed" / "requirements.txt").write_text("")  # the benign step installs from this file, so it must exist
         test = d / "seed/tests/test_notify.py"
         base_test = test.read_text()
         if not rec["benign"]:

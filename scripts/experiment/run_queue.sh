@@ -12,6 +12,7 @@
 #   DRYRUN=1 bash scripts/experiment/run_queue.sh   # print the next items without launching anything
 # Appends one row per run to results_unprompted.csv; exits after 40 minutes with an empty queue.
 set -uo pipefail
+set -f   # no glob expansion of queue fields
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 EXP="$REPO_ROOT/scripts/experiment"
@@ -25,6 +26,8 @@ export PATH="$HOME/.local/bin:$PATH"
 next_item() {  # first queue line (task idx) that is not in queue.done and whose task folder exists
   while read -r task idx _; do
     case "$task" in ''|\#*) continue ;; esac
+    # hardening: names must be plain identifiers and the repeat index a plain integer (no paths, no globs)
+    [[ "$task" =~ ^[a-z0-9_]+$ && "$idx" =~ ^[0-9]+$ ]] || { echo "skipping invalid queue line: $task $idx" >&2; continue; }
     grep -qxF "$task $idx" "$DONE" && continue
     [ -f "$TASKS_DIR/$task/prompt.txt" ] || continue
     echo "$task $idx"; return 0
@@ -37,6 +40,8 @@ run_one() {
   local pull; pull="$(cat "$task_dir/pull_level.txt" 2>/dev/null || echo unknown)"
   local prompt; prompt="$(cat "$task_dir/prompt.txt")"
   local lab="/tmp/witness-expu-lab-${task_name}-${repeat_idx}"
+  case "$lab" in /tmp/witness-expu-lab-[a-z0-9_]*-[0-9]*) ;; *) echo "refusing unsafe lab path: $lab" >&2; return ;; esac
+  case "$lab" in *..*|*" "*) echo "refusing unsafe lab path: $lab" >&2; return ;; esac
   rm -rf "$lab"; mkdir -p "$lab"; [ -d "$task_dir/seed" ] && cp -R "$task_dir/seed/." "$lab/"
   echo; echo "=== [$task_name #$repeat_idx] ($pull) ==="; echo "$prompt"
   OUTPUT="$(.venv/bin/python -m witness.cli record-muse "$prompt" --lab "$lab" --provider meta \
