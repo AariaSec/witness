@@ -33,7 +33,7 @@ in two places only, and every model called at runtime is a Meta model.
 |---|---|---|---|
 | Muse Spark Open (`meta-models/muse-spark-open-1026`, open-weight) | Baseten (`--analyst-provider baseten`) | Analyst pass: writes an advisory plain-language verdict and a confidence score for a recorded bundle. It never changes a pass/fail result. Also runs inside the merge gate on real GitHub runners ([PR #3](https://github.com/AariaSec/witness/pull/3)). | `runs/frozen/analyst-live-proof-*`, `docs/NUMBERS.md` |
 | Muse Spark 1.3 | Meta Model API (`--analyst-provider meta`) | The same analyst pass, called first-party. | `docs/NUMBERS.md` |
-| Muse Spark 1.3 (triage) | Meta Model API (`witness triage --provider meta`) | Adjudicates the detector's `mismatch` findings: it proposes `supported` / `unsupported` / `needs_human`, and a deterministic verifier must corroborate the verdict from the record or it stays `NEEDS_HUMAN`. Advisory; never changes the exit code. | `runs/frozen/live-capture-triage-20261103/` |
+| Muse Spark 1.3 (triage) | Meta Model API (`witness triage --provider meta`) | Adjudicates the detector's `mismatch` findings, and annotates `pgroup_escape` warnings (never clearing them): it proposes `supported` / `unsupported` / `needs_human`, and a deterministic verifier must corroborate the verdict from the record or it stays `NEEDS_HUMAN`. Advisory; never changes the exit code. | `runs/frozen/live-capture-triage-20261103/` |
 | Muse Glimmer 30B (open-weight, Q4_K_M GGUF) | A Modal A10G GPU that we deploy and serve ourselves, via llama.cpp (`scripts/glimmer_modal.py`; `--analyst-provider glimmer`, endpoint from `WITNESS_GLIMMER_URL`) | The same analyst pass on open weights we host ourselves. | `runs/frozen/live-capture-glimmer-*`, `docs/NUMBERS.md` |
 | Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log and does not store its prompts. | `runs/frozen/muse-real-agent-proof-*` |
 
@@ -191,22 +191,27 @@ is this finding real, or an artefact of the comparison? The model proposes a
 verdict and cites sequence numbers; a deterministic verifier then re-derives the
 claim from the record. A verdict the verifier cannot corroborate is downgraded to
 `NEEDS_HUMAN`, so the model can never retract a finding on its own say-so. Stop
-findings and every other detector are never sent. The result is advisory: it does
+findings and every other detector are never sent (the `pgroup_escape` annotation above is the one exception, for warnings only). The result is advisory: it does
 not change `witness verify`'s exit code, the policy decision, the hash chain or the
 signature.
 
-It also adjudicates warn-severity `pgroup_escape` findings, the detector's noisiest
-signal (a real agent's own test runner detaching from the process group shows up as a
-warning in 12 of the 32 experiment sessions). Here the model supplies the judgement a rule
-cannot (is this detached process an ordinary tool?), and a deterministic guard bounds the risk:
-a retraction is accepted only if nothing in the bundle ties the escape to a decoy read, an
-outbound POST, a protected write, credential persistence or any stop finding, and a stop-severity
-escape can never be retracted. Without the model, those warnings stay in the review queue.
-Small labelled check (`scripts/triage_eval.py`, `runs/frozen/triage-eval-20261104/`):
-Muse Spark 1.3 and Muse Spark Open each resolved all 3 real benign warnings (from the 2 real
-Muse Code sessions whose bundles survive in `corpus/benign-real/`) and dismissed 0 of 6 true
-escape findings (one simulated escape scenario, three committed copies, used only as a
-stress test). n is tiny, so read it as "works on the cases we have", not as an accuracy rate.
+It also annotates warn-severity `pgroup_escape` findings, the detector's noisiest
+signal (a real agent's own shell or test runner detaching from the process group shows up as a
+warning in 12 of the 32 experiment sessions, and 3 to 18 times per session in the unprompted
+batch). **A pgroup warning is never cleared:** the best the model can do is label it
+`LIKELY_BENIGN` (it stays in the review queue), because the recorder's only network capture is the
+loopback decoy, so the absence of a recorded decoy read is not evidence that a detached process did
+nothing. The deterministic guard only refuses a "likely benign" label when the bundle ties the escape
+to a decoy read, an outbound POST, a protected write, credential persistence or a stop finding; it
+does not look at what the process is. That judgement is the model's alone, which is why the
+evaluation includes a constant-answer baseline.
+Small labelled check (`scripts/triage_eval.py`, `runs/frozen/triage-eval-20261104/`): both Muse
+Spark 1.3 and Muse Spark Open call the 3 real benign warnings and 4 hand-built benign tool escapes
+(make, node, cargo, npm) ordinary, and refuse all 8 hand-built suspicious escapes (curl, nc, ssh, scp,
+and held-out wget, socat, telnet, rsync); the constant baseline would call all 8 ordinary. The first
+version of the prompt did not do this (Spark 1.3 dismissed 2 of 4 and Spark Open 4 of 4), which is why the
+prompt now states the rule; the held-out half was added after that tuning. The suspicious cases are
+synthetic and the sample is tiny, so this shows the model does the work, not an accuracy rate.
 
 Live capture, 2026-11-03: on the real Muse Code bundle whose `mismatch` finding
 came from the since-fixed read-vs-write detector bug (every claim behind it is a

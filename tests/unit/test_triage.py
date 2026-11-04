@@ -160,3 +160,16 @@ def test_pgroup_confirmation_needs_correlated_evidence() -> None:
 def test_pgroup_cited_seq_must_exist() -> None:
     f = _esc_finding(3, 2)
     assert not _corroborate_pgroup("unsupported", "ORDINARY_TOOL_PROCESS_DETACH", [999], f, {2: _proc_escape(2), 3: f})[0]
+
+
+def test_pgroup_unsupported_is_never_a_retraction() -> None:
+    from witness.analyst.triage import _label
+    assert _label("unsupported", True, FindingKind.pgroup_escape) == "LIKELY_BENIGN"
+    assert _label("unsupported", True, FindingKind.mismatch) == "RETRACTED"
+    assert _label("unsupported", False, FindingKind.pgroup_escape) == "NEEDS_HUMAN"
+
+
+def test_bare_name_alias_must_be_unique() -> None:
+    recs = {1: _claim(1, ClaimTool.write, ["config.py"]), 2: _fs(2, "a/config.py"), 3: _fs(3, "b/config.py")}
+    f = _finding([1, 2, 3])
+    assert not _corroborate("unsupported", "PATH_ALIAS_SAME_FILE", [1, 2], f, recs)[0]

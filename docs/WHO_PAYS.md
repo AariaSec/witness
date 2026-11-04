@@ -16,7 +16,7 @@ own tool calls) are the reason that is uncomfortable.
 
 | Today | With witness |
 |---|---|
-| Trust the agent's final message | A recorder outside the agent's process records files, network and processes; the receipt is hash-chained and signed, so the agent's words are never the evidence |
+| Trust the agent's final message | A recorder outside the agent's process records files, processes and (decoy-endpoint) network events; the receipt is hash-chained and signed, so the agent's words are never the evidence |
 | Read the transcript or diff after the fact, by hand | A merge-gate check that fails on a stop-severity finding, plus an advisory read-out; reviewers open the console only when it flags |
 | Tools that retain prompts and responses to audit an agent | Content-free by design (digests, enums, counts); nothing sensitive to store, leak or subpoena |
 
@@ -28,7 +28,9 @@ Measured, not estimated:
 - **Verification:** a signed receipt verifies in a median 2.5 ms locally (`docs/NUMBERS.md`).
 - **Meta model calls** are optional and advisory: 24 s (Spark 1.3 analyst), 12 s (Spark 1.3 triage) and 58 s
   (Glimmer 30B on our Modal GPU) in the captured runs. The open-weight route (Muse Spark Open,
-  Glimmer) can be self-served, so there is no per-call vendor fee on that path.
+  Glimmer) can be self-served, which swaps a per-call fee for GPU hosting (we use Baseten for Spark Open
+  and a Modal GPU for Glimmer; both are paid services). Those figures are for successful calls: the
+  README also records timeouts of 54 to 142 s and a ~70 s Glimmer cold start.
 - **Adoption:** one GitHub Action step (`.github/actions/witness-verify`) and a recorder wrapper around
   the agent; no prompt or response data leaves the machine.
 
