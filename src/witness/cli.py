@@ -709,9 +709,10 @@ def verify(
         "--with-analyst",
         help="also run the analyst pass (witness.analyst.run.analyze) and print its "
         "content-free report (status/confidence/fixed summary codes only — never raw "
-        "evidence text). Attempts a real call to Meta's open-weight Muse Spark Open via "
-        "--analyst-provider (BASETEN_API_KEY/FIREWORKS_API_KEY env var, falling back to "
-        "the matching local key file) and silently falls back to the offline "
+        "evidence text). Attempts a real call to a Meta model via "
+        "--analyst-provider: baseten (Muse Spark Open, BASETEN_API_KEY), meta (Muse Spark 1.3, "
+        "META_API_KEY), glimmer (Muse Glimmer 30B, WITNESS_GLIMMER_URL) or fireworks "
+        "(unverified); keys fall back to the matching local key file) and silently falls back to the offline "
         "deterministic template on any failure — this flag can only ever ADD "
         "information, never change the exit code.",
     ),

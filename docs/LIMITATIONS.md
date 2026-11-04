@@ -356,8 +356,7 @@ than was available in the remaining time before submission.
   in context) rather than the originally-specified multi-turn
   `get_record`/`query` tool-calling loop — simpler, verified working, but
   a real tool-calling loop would scale better to very large bundles.
-- Wiring the live **Meta Model API** (Muse Spark, hosted) path once that
-  key is available — today's live path uses the open-weight model via
-  Baseten, which already satisfies "meaningfully use Meta Model API
-  and/or Meta open-weight models," but the hosted-API path specifically
-  is still untested.
+- The live **Meta Model API** (Muse Spark 1.3, hosted) path is now wired and
+  verified live (see `docs/NUMBERS.md`), alongside the open-weight paths via
+  Baseten and a self-deployed Muse Glimmer 30B on Modal. It is slow and can
+  time out (24-142 s observed) and then falls back to the offline template.

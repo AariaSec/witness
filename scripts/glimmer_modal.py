@@ -1,8 +1,8 @@
 """
 Muse Glimmer on Modal — OpenAI-compatible inference for the witness analyst pass.
 
-Serves `meta-models/Muse-Glimmer-30B` (Apache-2.0, GGUF ~16.8 GB) via llama.cpp's
-OpenAI-compatible server on a single 24 GB A10G — "own hardware" evidence for the
+Serves `meta-models/Muse-Glimmer-30B-GGUF` (Apache-2.0, GGUF ~16.8 GB) via llama.cpp's
+OpenAI-compatible server on a single 24 GB A10G — a self-deployed GPU (partner-hosted on Modal) as evidence for the
 hackathon's $10K Best-Build-on-Meta-Open-Weights bonus. The 16.8 GB GGUF fits an A10G
 with room for context; no quantization spike needed (vs bf16 ~60 GB which would force
 an A100-80GB).

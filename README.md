@@ -33,7 +33,7 @@ in two places only, and every model called at runtime is a Meta model.
 |---|---|---|---|
 | Muse Spark Open (`meta-models/muse-spark-open-1026`, open-weight) | Baseten (`--analyst-provider baseten`) | Analyst pass: writes an advisory plain-language verdict and a confidence score for a recorded bundle. It never changes a pass/fail result. Also runs inside the merge gate on real GitHub runners ([PR #3](https://github.com/AariaSec/witness/pull/3)). | `runs/frozen/analyst-live-proof-*`, `docs/NUMBERS.md` |
 | Muse Spark 1.3 | Meta Model API (`--analyst-provider meta`) | The same analyst pass, called first-party. | `docs/NUMBERS.md` |
-| Muse Glimmer 30B (open-weight, Q4_K_M GGUF) | Our own Modal A10G GPU via llama.cpp (`scripts/glimmer_modal.py`; `--analyst-provider glimmer`, endpoint from `WITNESS_GLIMMER_URL`) | The same analyst pass on open weights we host ourselves. | `runs/frozen/live-capture-glimmer-*`, `docs/NUMBERS.md` |
+| Muse Glimmer 30B (open-weight, Q4_K_M GGUF) | A Modal A10G GPU that we deploy and serve ourselves, via llama.cpp (`scripts/glimmer_modal.py`; `--analyst-provider glimmer`, endpoint from `WITNESS_GLIMMER_URL`) | The same analyst pass on open weights we host ourselves. | `runs/frozen/live-capture-glimmer-*`, `docs/NUMBERS.md` |
 | Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log, never its prompts. | `runs/frozen/muse-real-agent-proof-*` |
 
 witness also ships a parser for Claude Code session logs, to show the recorder
@@ -162,8 +162,8 @@ witness verify <bundle.jsonl> --with-analyst --analyst-provider meta
 |---|---|---|
 | `meta` | `META_API_KEY` | Muse Spark 1.3 via the Meta Model API |
 | `baseten` | `BASETEN_API_KEY` | Muse Spark Open (open-weight) |
-| `fireworks` | `FIREWORKS_API_KEY` | same open-weight model, second host |
-| `glimmer` | `WITNESS_GLIMMER_URL` (no key) | Muse Glimmer 30B on our own Modal GPU |
+| `fireworks` | `FIREWORKS_API_KEY` | same open-weight model, second host (built and unit-tested, **not live-verified**) |
+| `glimmer` | `WITNESS_GLIMMER_URL` (no key) | Muse Glimmer 30B on a Modal GPU we deploy ourselves |
 
 A live call is not instant: in our captured runs the Meta Model API took 24-40 s and Glimmer on Modal took about 58 s (plus a ~70 s cold start), and some attempts timed out (54-142 s) and fell back to the offline template (`analyst_status="offline"`). The fallback is by design and the verdict never depends on the call.
 
@@ -295,9 +295,11 @@ the exact `run_id`s and how to reproduce each one. Grouped by the three
 properties a verification "sensor" is judged on (most teams only get two
 of three — see the "Why" section above):
 
-- **Latency** (time to signal): persistence detection fires in
-  **5.9–19.3ms**, against a 500ms budget — measured on the owner's
-  machine, not a CI runner; treat as provisional until re-measured there.
+- **Latency** (time to stop): across the 8 stop-expected runs in the latest
+  frozen arena (`runs/frozen/arena-20261028b/scores.json`), the process
+  group was stopped in **3–16 ms (median 9 ms)**, against a 500 ms budget —
+  measured on the owner's machine, not a CI runner; treat as provisional
+  until re-measured there.
 - **Fidelity** (escape rate): the latest frozen arena run
   (`runs/frozen/arena-20261028b/`) scored 11 scenarios — 9 flagged, 0 missed,
   0 false alarms, 2 benign. The first official run (2026-10-26): scenario arena, 10/10 archetypes recorded

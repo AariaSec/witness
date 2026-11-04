@@ -234,7 +234,7 @@ class MetaModelClient(_OpenAICompatibleClient):
 
 
 class GlimmerClient(_OpenAICompatibleClient):
-    """Muse Glimmer (Meta's open-weight 30B model) served on our OWN hardware:
+    """Muse Glimmer (Meta's open-weight 30B model) served from a GPU we deploy ourselves:
     a llama.cpp OpenAI-compatible server on a Modal A10G GPU
     (`scripts/glimmer_modal.py`). No API key: the endpoint URL is supplied via
     `WITNESS_GLIMMER_URL` (e.g. `https://<workspace>--aariasec-glimmer-serve.modal.run/v1/chat/completions`)
