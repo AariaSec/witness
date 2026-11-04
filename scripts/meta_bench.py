@@ -125,7 +125,7 @@ def summarize(rows: list[dict]) -> str:
                 continue
             ok = [r for r in rs if r["status"] == "ok"]
             avg = lambda k: (sum(r[k] for r in ok if r.get(k) is not None) / max(1, len([r for r in ok if r.get(k) is not None]))) if ok else float("nan")
-            walls = sorted(r["wall_s"] for r in rs)
+            walls = sorted(r["wall_s"] for r in ok) or [0.0]  # latency over SUCCESSFUL calls only
             p90 = walls[min(len(walls) - 1, int(0.9 * len(walls)))]
             inv = sum(1 for r in ok if r.get("invented"))
             lines.append(f"| {name} | {subset} | {len(rs)} | {len(ok)}/{len(rs)} | {avg('cite_exist'):.0%} | {avg('cite_fit'):.0%} | {avg('finding_recall'):.0%} | {inv}/{len(ok)} | {statistics.median(walls):.0f} | {p90:.0f} |")

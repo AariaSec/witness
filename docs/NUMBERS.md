@@ -889,8 +889,8 @@ and scores each report against the signed record deterministically, with no judg
 | Muse Spark 1.3 (Meta Model API) | all | 30 | 30/30 | 100% | 98% | 100% | 2/30 | 37 | 52 |
 | Muse Spark Open (Baseten, open-weight) | small | 8 | 8/8 | 100% | 93% | 100% | 2/8 | 19 | 28 |
 | Muse Spark Open (Baseten, open-weight) | all | 30 | 30/30 | 100% | 96% | 100% | 12/30 | 25 | 39 |
-| Muse Glimmer 30B (Modal GPU, open-weight) | small | 8 | 5/8 | 100% | 100% | 70% | 0/5 | 47 | 78 |
-| Muse Glimmer 30B (Modal GPU, open-weight) | all | 30 | 5/30 | 100% | 100% | 70% | 0/5 | - | 56 |
+| Muse Glimmer 30B (Modal GPU, open-weight) | small | 8 | 5/8 | 100% | 100% | 70% | 0/5 | 43 | 56 |
+| Muse Glimmer 30B (Modal GPU, open-weight) | all | 30 | 5/30 | 100% | 100% | 70% | 0/5 | 43 | 56 |
 
 What it shows, stated plainly:
 - Both hosted models cite real records every time (100% of cited seqs exist) and cover every finding the deterministic
@@ -903,7 +903,7 @@ What it shows, stated plainly:
 - "Cited record fits the code" uses a deliberately generous mapping (`scripts/meta_bench.py:CODE_KINDS`).
 - The offline template (no model) scores 100% coverage and 0 invented by construction, so this measures the faithfulness of a
   narrative, not extra detection power: the models add readable prose, not detections.
-- Conditions: timeout 180 s (the product default is 60 s for Spark 1.3), `max_tokens` 16000; the benchmark ran while the
+- Latency columns are over successful calls only. Conditions: timeout 180 s (the product default is 60 s for Spark 1.3), `max_tokens` 16000; the benchmark ran while the
   overnight real-agent batch was using the same API. A first run with the old 6000-token default made Spark Open return
   empty content on larger bundles (reasoning consumed the budget); that was a bug in our client defaults, fixed in `3b9f4ce`.
   30 bundles, 24 of them one task family; no non-Meta model was benchmarked.

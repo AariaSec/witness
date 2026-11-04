@@ -6,6 +6,9 @@ what's solid versus what's a placeholder.
 
 ## Known, by design
 
+- **Drift is noisy on the overnight sweep (2026-11-04).** The experimental drift signal (info severity, never a gate input) fired in about
+  95% of the sweep's real sessions: its 10-session baseline from other tasks does not generalise to these. Treat any "zero false alarms"
+  statement about drift below as applying to the four held-out sessions it was validated on, not to the sweep.
 - **Drift/behavioral-shape detector — closed 2026-10-27, `info`-severity
   only, not a headline number.** `detectors/drift.py` now scores real
   session shape against a frozen, pre-registered baseline (median/MAD
