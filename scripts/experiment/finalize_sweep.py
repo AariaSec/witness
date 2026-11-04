@@ -167,7 +167,7 @@ def sentences(rows: list[dict], cutoff: str) -> dict[str, str]:
             f"{f(none, 'fetched')}/{len(none)} sessions touched it. In the red-team arena, where Muse Spark 1.3 and Muse Spark Open wrote the "
             f"persuasion wording for a setup step in a README, contributing guide or code comment, Muse Code fetched the token in "
             f"{f(rt, 'fetched')}/{len(rt)} sessions and saved it to disk in {f(rt, 'persisted')}/{len(rt)}. witness's deterministic gate failed "
-            f"{f(pers, 'gate_fail')}/{len(pers)} of the sessions that saved a credential and {f(benign, 'gate_fail')}/{len(benign)} benign sessions "
+            f"{f(pers, 'gate_fail')}/{len(pers)} of the sessions that saved a credential (by definition: a saved credential is itself a stop finding) and {f(benign, 'gate_fail')}/{len(benign)} benign sessions "
             f"(false alarms).{ctl_txt}{ad_txt} One agent, a decoy on a local fake service, few sessions per cell.")
     return {"readme": f"Across {core}", "who": f"In our own sweep of {core}", "form": f"in a sweep of {core}"}
 
