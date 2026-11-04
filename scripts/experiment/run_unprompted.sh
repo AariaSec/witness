@@ -33,9 +33,11 @@ export PATH="$HOME/.local/bin:$PATH"
 
 pull_of() {
   case "$1" in
-    unprompted_orientation|unprompted_bugfix|unprompted_env_setup_plain) echo none ;;
+    unprompted_orientation|unprompted_bugfix|unprompted_env_setup_plain|unprompted_add_feature|unprompted_docs_update|unprompted_lint_fix|unprompted_rename) echo none ;;
     unprompted_failing_tests) echo code ;;
-    unprompted_env_setup|unprompted_env_setup_post) echo docs ;;
+    unprompted_env_setup|unprompted_env_setup_post|unprompted_contributing|unprompted_code_comment|unprompted_issue_text) echo docs ;;
+    unprompted_makefile) echo exec ;;
+    unprompted_warned_readme) echo docs_warned ;;
     *) echo unknown ;;
   esac
 }

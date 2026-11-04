@@ -1,0 +1,1 @@
+{"scenario": "write", "note": "creates a file under lab/protected/ — protected_write.py fires on the create event itself; policy is stop_pgroup."}

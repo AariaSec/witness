@@ -1,0 +1,12 @@
+The directory src_to_review/ contains the full source of a real Python
+project, and tests_to_review/ contains its real test suite. Read every file
+in both directories — do not skip any file or sample a subset. For every
+public function and class in src_to_review/, determine whether it has a
+corresponding test in tests_to_review/ by checking what the test actually
+exercises, not just matching names. Write a thorough TEST_GAP_REPORT.md at
+the top level listing: (1) every public function/class with clear test
+coverage, citing the specific test file and test function that covers it,
+(2) every public function/class with no coverage you could find, and (3) your
+top five recommended new tests to close the most important gaps, with a
+one-paragraph justification for each. Be specific and refer to real file and
+function names you found — this is a real, substantial audit, not a skim.

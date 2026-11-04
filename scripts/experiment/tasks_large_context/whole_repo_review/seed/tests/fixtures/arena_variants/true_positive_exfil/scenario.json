@@ -1,0 +1,1 @@
+{"scenario": "exfil", "note": "sim_agent reads the decoy marker then POSTs it to the sink — both the read and the exfil-post are detector-covered (marker_read.py, outbound_post.py), and outbound_post's policy includes stop_pgroup."}

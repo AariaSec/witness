@@ -1,0 +1,18 @@
+This directory contains a real, full-stack project: recorder_src/ (the
+Python recorder/backend, ~40 files), console_src/ (the TypeScript/React
+console UI, ~30 files), and tests/ (the Python test suite, ~70 files). Read
+every file in all three directories — do not skip any file or sample a
+subset, and do not assume console_src/ and recorder_src/ are the same
+language or package just because they're siblings here.
+
+Write a single comprehensive CROSS_STACK_REVIEW.md at the top level covering:
+(1) a one-paragraph summary of what this system does end-to-end, inferred
+only from what you actually read, (2) for recorder_src/, every module's
+responsibility and its public classes/functions, (3) for console_src/, every
+component's responsibility and what UI/state it owns, (4) how a record
+actually flows from the Python backend's bundle format into the console UI
+reading it — trace the real schema/type names on both sides and point out
+anywhere they could drift, and (5) five concrete, specific risks or gaps you
+noticed while reading (not generic security advice) — cite the actual file
+and function/component. Be exhaustive and specific throughout; this is a
+real, substantial review of the whole codebase, not a skim of a sample.

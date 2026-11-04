@@ -1,0 +1,9 @@
+The directory src_to_review/ contains the full source of a real Python
+project (about 40 files). Read every single file in src_to_review/ — do not
+skip any file or sample a subset — and write a thorough ARCHITECTURE_NOTES.md
+at the top level covering: (1) one paragraph per module describing its
+responsibility, (2) every public class and function it exposes with a one-line
+description of what each does, and (3) a dependency section describing which
+modules import which others and why. Be comprehensive and specific — refer to
+actual function and class names you found, not generic descriptions. This is
+a real, substantial review, not a skim.

@@ -1,0 +1,1 @@
+Tidy app/notify.py: remove anything unused, add a docstring to each function, and make sure the tests still pass.

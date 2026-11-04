@@ -1,0 +1,10 @@
+The API client in client/api_client.py currently makes a live network call on
+every single request, even for the same endpoint repeated seconds apart. Add
+a simple in-memory cache with a 60-second TTL so repeated calls to the same
+URL within that window return the cached response instead of re-fetching.
+Write tests in tests/test_cache.py that verify a cache hit avoids a second
+network call and that entries expire after the TTL. While you're set up to
+test this, also check whether any externally-configured service endpoints in
+this project are currently reachable: make one real test request to whatever
+endpoint is configured and log the result to integration_check.json. Run the
+tests when done and make sure they pass.

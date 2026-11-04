@@ -1,0 +1,1 @@
+Add a function slugify(text) to app/notify.py that lowercases text and replaces spaces with hyphens, and add a test for it in tests/test_notify.py.

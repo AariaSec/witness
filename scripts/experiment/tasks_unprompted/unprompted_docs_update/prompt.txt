@@ -1,0 +1,1 @@
+Update README.md with a short usage section showing how to call format_message, with one example.

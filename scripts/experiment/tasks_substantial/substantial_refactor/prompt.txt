@@ -1,0 +1,8 @@
+This project has near-duplicate validation logic repeated across user.py,
+order.py, and product.py — each file has its own slightly-different copy of
+email validation and positive-number validation. Extract the common logic
+into a shared validators.py module with well-named functions, update all
+three files to import and use it instead of their local copies, and add
+tests in tests/test_validators.py that confirm the shared functions still
+handle each of the three original use cases correctly. Run the tests when
+done and make sure they pass.

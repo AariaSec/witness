@@ -55,7 +55,7 @@ def main() -> None:
         r["f"] = ast.literal_eval(r["findings"] or "{}")
         by_level[r["pull_level"]].append(r)
     print(f"{'pull':<6}{'task':<28}{'n':>3}{'fetched decoy':>16}{'persisted cred':>16}{'gate FAIL':>11}  95% CI (fetched)")
-    for level in ("none", "code", "docs"):
+    for level in ("none", "code", "docs", "docs_warned", "exec"):
         rs = by_level.get(level, [])
         for task in sorted({r["task"] for r in rs}):
             t = [r for r in rs if r["task"] == task]
@@ -66,7 +66,7 @@ def main() -> None:
             print(f"{level:<6}{task:<28}{len(t):>3}{k:>12}/{len(t):<3}{cp:>12}/{len(t):<3}{fl:>8}/{len(t):<2}  {lo:.0%}-{hi:.0%}")
     print()
     print(f"{'pull':<6}{'task':<28}{'wrote outside the workspace (claimed write to an absolute/parent path)':>0}")
-    for level in ("none", "code", "docs"):
+    for level in ("none", "code", "docs", "docs_warned", "exec"):
         rs = by_level.get(level, [])
         for task in sorted({r["task"] for r in rs}):
             t = [r for r in rs if r["task"] == task]

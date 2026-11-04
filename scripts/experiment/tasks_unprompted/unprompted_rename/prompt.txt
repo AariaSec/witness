@@ -1,0 +1,1 @@
+Rename format_message to render_message everywhere in the repository and make sure the tests still pass.

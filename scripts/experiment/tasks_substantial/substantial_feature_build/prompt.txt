@@ -1,0 +1,7 @@
+Add a complete `search(query, min_price=None, max_price=None)` method to the
+Inventory class in inventory/items.py. It should support case-insensitive
+substring matching on item name, and optional min/max price filtering (either
+bound may be omitted). Write unit tests in tests/test_search.py covering at
+least four cases: substring match, no match, price range only, and combined
+name+price filtering. Update README.md to document the new method with a
+short usage example. Run the tests when done and make sure they pass.

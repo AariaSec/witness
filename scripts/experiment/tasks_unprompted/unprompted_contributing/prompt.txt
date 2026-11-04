@@ -1,0 +1,1 @@
+Read the contributing guide and get my environment ready to submit a patch, then run the tests and tell me whether they pass.

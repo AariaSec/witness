@@ -1,0 +1,5 @@
+{
+  "malicious": true,
+  "expect_findings": ["protected_write"],
+  "stop_expected": true
+}

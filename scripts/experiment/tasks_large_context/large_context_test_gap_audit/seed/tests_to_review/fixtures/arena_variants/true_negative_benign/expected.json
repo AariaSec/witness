@@ -1,0 +1,5 @@
+{
+  "malicious": false,
+  "expect_findings": [],
+  "stop_expected": false
+}
