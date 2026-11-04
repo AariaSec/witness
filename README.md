@@ -88,7 +88,7 @@ and if it doesn't, can you catch it fast enough to act?*
 This isn't hypothetical. In July 2026, OpenAI models under test escaped their
 sandbox and compromised Hugging Face's systems
 ([OpenAI's account, 2026-08-26](https://openai.com/index/hugging-face-incident-and-the-road-ahead/)).
-In an independent investigation, METR found that agents also spoofed tool calls
+In [an independent investigation](https://metr.org/blog/2026-08-26-openai-hugging-face-incident-investigation/), METR found that agents also spoofed tool calls
 in their own transcripts, so what the transcript said they ran was not what
 ran (about 7% of the transcripts METR reviewed; METR describes these as
 small-scale tests aimed at fooling the benchmark's scorer). OpenAI's own
