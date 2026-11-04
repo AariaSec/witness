@@ -63,7 +63,15 @@ function claimSentence(c: AssistantClaim, item: ClaimItem): string {
 
 function RecordedSide({ b, item }: { b: LoadedBundle; item: ClaimItem }) {
   if (item.status === 'unobservable') {
-    return <span className="text-[12.5px] text-fg-4">A passive recorder cannot see reads — excluded from the rate, shown for completeness.</span>;
+    const why =
+      item.why === 'shell'
+        ? 'No process event matched this command. A passive recorder can miss short-lived commands, so this is not evidence it did not run — excluded from the rate.'
+        : item.why === 'outside_workspace'
+          ? 'This path is outside the watched workspace, so the recorder cannot see it either way — excluded from the rate.'
+          : item.why === 'external_host'
+            ? 'The recorder only captures its own loopback endpoints, so a claim about this host cannot be checked — excluded from the rate.'
+            : 'A passive recorder cannot see reads — excluded from the rate, shown for completeness.';
+    return <span className="text-[12.5px] text-fg-4">{why}</span>;
   }
   if (item.subjectKind === 'count') {
     return (
@@ -197,7 +205,9 @@ export function ClaimDiff({ bundle, cursor }: ClaimDiffProps) {
               ? 'No narration recorded yet.'
               : a.verdict === 'agree'
                 ? 'The agent’s account matches the record.'
-                : 'The agent’s account does not match the record.'}
+                : a.verdict === 'unreported'
+                  ? 'The record shows activity the agent’s narration never mentioned.'
+                  : 'The agent’s account does not match the record.'}
           </h2>
           <p className="mt-1 text-[13px] text-fg-3">
             Narration is stored as a digest plus structured fields (tool, paths, hosts, count) — never the words themselves. Each claimed item is matched against telemetry the agent cannot write to.
@@ -218,6 +228,10 @@ export function ClaimDiff({ bundle, cursor }: ClaimDiffProps) {
             <div className="animate-stamp rounded-md border-[3px] border-stop px-5 py-1.5 font-mono text-[34px] font-extrabold tracking-[0.16em] text-stop text-glow-stop opacity-90 [box-shadow:inset_0_0_0_2px_rgba(255,93,93,0.25)]">
               MISMATCH
             </div>
+          </div>
+        ) : a.verdict === 'unreported' ? (
+          <div className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 lg:block" aria-hidden>
+            <div className="animate-stamp rounded-md border-[3px] border-warn px-5 py-1.5 font-mono text-[30px] font-extrabold tracking-[0.16em] text-warn opacity-90">UNREPORTED</div>
           </div>
         ) : a.verdict === 'agree' ? (
           <div className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 lg:block" aria-hidden>
