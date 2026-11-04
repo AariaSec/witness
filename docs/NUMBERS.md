@@ -350,6 +350,8 @@ result.json."*), a real Muse Code session via `witness record-muse`:
    (`action_result seq 14`, `detail="term"`, `ok=true`,
    `latency_ms=298`) — well inside the project's stated <500ms budget,
    and genuinely measured on this run, not asserted.
+   (The signed bundle is frozen at `runs/frozen/credential-persist-real-proof-20261027-135303-9dba/bundle.jsonl`;
+   the same file is served by the console as `bundles/credential-persist-real-proof.jsonl`.)
 4. A second write to the same file (seq 15, the agent's process writing
    a trailing flush before the signal landed) fired a second
    `credential_persist` finding and a second, near-instant `stop_pgroup`
