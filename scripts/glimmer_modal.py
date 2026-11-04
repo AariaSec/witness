@@ -2,8 +2,8 @@
 Muse Glimmer on Modal — OpenAI-compatible inference for the witness analyst pass.
 
 Serves `meta-models/Muse-Glimmer-30B-GGUF` (Apache-2.0, GGUF ~16.8 GB) via llama.cpp's
-OpenAI-compatible server on a single 24 GB A10G — a self-deployed GPU (partner-hosted on Modal) as evidence for the
-hackathon's $10K Best-Build-on-Meta-Open-Weights bonus. The 16.8 GB GGUF fits an A10G
+OpenAI-compatible server on a single 24 GB A10G — a self-deployed GPU (partner-hosted on Modal) as hosting evidence for the
+hackathon's Best-Build-on-Meta-Open-Weights bonus. The 16.8 GB GGUF fits an A10G
 with room for context; no quantization spike needed (vs bf16 ~60 GB which would force
 an A100-80GB).
 
@@ -21,7 +21,7 @@ COST GUARD
     - A10G ≈ $1.10/hr on Modal; scaledown_window keeps it warm 3 min then stops.
     - max_containers=1 so a runaway can't fan out. Well inside the $40 GPU cap.
 
-VERIFY-ID RULE (your plan): confirm the exact GGUF filename returns 200 before the demo.
+VERIFY-ID RULE: confirm the exact GGUF filename returns 200 before the demo.
     huggingface-cli download meta-models/Muse-Glimmer-30B --include "*.gguf" --local-dir /tmp/g
 If the repo id or filename differ in your environment, change MODEL_REPO / GGUF_GLOB below.
 """

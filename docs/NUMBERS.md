@@ -779,3 +779,15 @@ outside the agent's process, while its own report never mentioned either. We do
 how often a Muse Code agent contradicted its own report. The earlier
 "self-report disagreed with the record" phrasing in this document refers to
 this finding and should be read with this correction.
+
+
+## Where the 0.93 Muse Spark Open confidence comes from
+
+The `confidence=0.93` shown in the console's live-gauge view
+(`console/public/bundles/analyst-live-proof.jsonl`) and in the merge-gate step
+summary is the Muse Spark Open (`meta-models/muse-spark-open-1026`, Baseten)
+re-run under the canonical-code-enum schema fix, also reproduced inside a real
+GitHub Actions run on 2026-10-27 (PR #3: `analyst: status=ok confidence=0.93`).
+The first run on 2026-10-26 scored 0.88. The analyst's own report record carries
+`model_id="live"` (it does not store the provider's model id); the provider and
+model are fixed by the `--analyst-provider baseten` call that produced it.

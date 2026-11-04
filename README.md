@@ -165,7 +165,7 @@ witness verify <bundle.jsonl> --with-analyst --analyst-provider meta
 | `fireworks` | `FIREWORKS_API_KEY` | same open-weight model, second host (built and unit-tested, **not live-verified**) |
 | `glimmer` | `WITNESS_GLIMMER_URL` (no key) | Muse Glimmer 30B on a Modal GPU we deploy ourselves |
 
-A live call is not instant: in our captured runs the Meta Model API took 24-40 s and Glimmer on Modal took about 58 s (plus a ~70 s cold start), and some attempts timed out (54-142 s) and fell back to the offline template (`analyst_status="offline"`). The fallback is by design and the verdict never depends on the call.
+A live call is not instant: in our frozen captures the Meta Model API took 24 s and Glimmer on Modal took 58 s (plus a ~70 s cold start), and some attempts timed out (54-142 s) and fell back to the offline template (`analyst_status="offline"`). The fallback is by design and the verdict never depends on the call.
 
 With no key set the command still succeeds and prints the offline template
 (`analyst_status="offline"`). The recorded runs in `runs/frozen/` include the
@@ -316,7 +316,7 @@ of three — see the "Why" section above):
 - **Batch reproducibility** (relabeled from "bandwidth" after a `muse
   exec` adversarial-judge pass called out the original label as a
   category error — this is a serial batch score, not a measured
-  concurrency/throughput result): 10 scenarios scored in one arena run
+  concurrency/throughput result): 10 scenarios scored in one arena run (11 in the latest run)
   today; the architecture (frozen seed set generated *before* any run,
   held in a private companion repo so nothing can be tuned against it)
   follows the same principle
@@ -337,8 +337,10 @@ of three — see the "Why" section above):
   against a different real bundle — `analyst_status="ok"`,
   `confidence=0.6` originally, `0.85` on the same later re-run. Together
   they cover both halves of "meaningfully use Meta Model API and/or Meta
-  open-weight models" with four independent real artifacts — see
-  `docs/NUMBERS.md`.
+  open-weight models." Two further live captures on 2026-11-03 (Muse Spark
+  1.3 at `confidence=0.9`, Muse Glimmer 30B on a Modal GPU we deploy
+  ourselves at `confidence=0.85`; frozen under `runs/frozen/live-capture-*`)
+  make six real calls in all — see `docs/NUMBERS.md`.
 
 ## Founder disclosure
 
