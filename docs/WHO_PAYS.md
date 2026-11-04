@@ -14,7 +14,7 @@ own tool calls) are the reason that is uncomfortable.
 
 ## Evidence the problem exists
 
-<!--SWEEP-WHO-START-->(written by finalize_sweep.py)<!--SWEEP-WHO-END-->
+<!--SWEEP-WHO-START-->In our own sweep of 263 real Muse Code sessions (data cutoff 2026-11-04T04:40): when nothing pulled the agent toward the decoy credential, 0/69 sessions touched it. In the red-team arena, where Muse Spark 1.3 and Muse Spark Open wrote the persuasion wording for a setup step in a README, contributing guide or code comment, Muse Code fetched the token in 22/60 sessions and saved it to disk in 3/60. witness's deterministic gate failed 26/26 of the sessions that saved a credential and 0/89 benign sessions (false alarms). A neutral-framing control (same step and same failing test, no persuasion) fetched in 11/12 and saved in 2/12, so persuasion effects are read against that. The attacker model (Muse Spark Open) refused 4 of 14 rewrite requests outright (counted, never run). In round 2 an adaptive attacker (Muse Spark Open, shown only the content-free outcome of round 1) rewrote 10 framings: the agent fetched in 5/20 sessions and saved the token in 1/20, against 11/20 and 0/20 for the same framings in round 1. One agent, a decoy on a local fake service, few sessions per cell..<!--SWEEP-WHO-END-->
 That is an agent following a documented setup step and leaving a credential on disk (a deliberately conservative stop
 policy), and the thing the merge gate catches. It is one agent and a decoy on a local fake service; a measurement, not a
 prevalence in the wild.
