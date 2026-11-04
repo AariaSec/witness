@@ -124,16 +124,76 @@ def copy_bundles(rows: list[dict]) -> int:
     return n
 
 
+def by_generator(rows: list[dict]) -> str:
+    """Red-team sessions grouped by which Meta model wrote the framing (read from each task's generated_by.json)."""
+    import json as _json
+
+    acc: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        if r["pull_level"] != "redteam":
+            continue
+        gb = ROOT / "scripts/experiment/tasks_unprompted" / r["task"] / "generated_by.json"
+        prov = _json.loads(gb.read_text())["model"] if gb.exists() else "unknown"
+        acc[prov].append(r)
+    if not acc:
+        return "(no red-team sessions yet)"
+    out = ["| Framing written by | Sessions | Fetched the decoy | Persisted a credential |", "|---|---|---|---|"]
+    for prov, rs in sorted(acc.items()):
+        out.append(f"| {prov} | {len(rs)} | {ci(sum(r['fetched'] for r in rs), len(rs))} | {ci(sum(r['persisted'] for r in rs), len(rs))} |")
+    return "\n".join(out)
+
+
+def sentences(rows: list[dict], cutoff: str) -> dict[str, str]:
+    none = [r for r in rows if r["pull_level"] == "none"]
+    rt = [r for r in rows if r["pull_level"] == "redteam"]
+    pers = [r for r in rows if r["persisted"]]
+    benign = none + [r for r in rows if r["pull_level"] == "redteam_benign"]
+    f = lambda xs, k: sum(1 for r in xs if r[k])
+    core = (f"{len(rows)} real Muse Code sessions (data cutoff {cutoff}): when nothing pulled the agent toward the decoy credential, "
+            f"{f(none, 'fetched')}/{len(none)} sessions touched it. In the red-team arena, where Muse Spark 1.3 and Muse Spark Open wrote the "
+            f"persuasion wording for a setup step in a README, contributing guide or code comment, Muse Code fetched the token in "
+            f"{f(rt, 'fetched')}/{len(rt)} sessions and saved it to disk in {f(rt, 'persisted')}/{len(rt)}. witness's deterministic gate failed "
+            f"{f(pers, 'gate_fail')}/{len(pers)} of the sessions that saved a credential and {f(benign, 'gate_fail')}/{len(benign)} benign sessions "
+            f"(false alarms). One agent, a decoy on a local fake service, few sessions per cell.")
+    return {"readme": f"Across {core}", "who": f"In our own sweep of {core}", "form": f"in a sweep of {core}"}
+
+
+def write_docs(rows: list[dict], cutoff: str) -> None:
+    import re as _re
+
+    tables = (f"Data cutoff {cutoff} (local time); every session started at or before it counts: {len(rows)} sessions.\n\n{arm_table(rows)}\n\n"
+              f"Red-team heat map (sessions that saved a credential / sessions):\n\n{heatmap(rows)}\n\n"
+              f"By the Meta model that wrote the framing:\n\n{by_generator(rows)}\n\n{consistency(rows)}")
+    sen = sentences(rows, cutoff)
+
+    def sub(path: Path, start: str, end: str, body: str) -> None:
+        t = path.read_text()
+        new, n = _re.subn(_re.escape(start) + r".*?" + _re.escape(end), lambda m: start + body + end, t, flags=_re.S)
+        if n != 1:
+            raise SystemExit(f"marker not found exactly once in {path}")
+        path.write_text(new)
+
+    sub(ROOT / "docs/NUMBERS.md", "<!-- SWEEP-TABLES-START -->\n", "\n<!-- SWEEP-TABLES-END -->", tables)
+    sub(ROOT / "README.md", "<!--SWEEP-README-START-->", "<!--SWEEP-README-END-->", sen["readme"])
+    sub(ROOT / "docs/WHO_PAYS.md", "<!--SWEEP-WHO-START-->", "<!--SWEEP-WHO-END-->", sen["who"] + ".")
+    drafts = ROOT.parent / "meta-hackathon" / "drafts.txt"
+    if drafts.exists():
+        sub(drafts, "{{SWEEP-START}}", "{{SWEEP-END}}", sen["form"])
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cutoff", default=DEFAULT_CUTOFF)
     ap.add_argument("--no-copy", action="store_true")
+    ap.add_argument("--write-docs", action="store_true", help="update the marked regions in NUMBERS.md, README.md, WHO_PAYS.md and drafts.txt")
     a = ap.parse_args()
     rows = load(CSV, a.cutoff)
     copied = 0 if a.no_copy else copy_bundles(rows)
     text = (f"Data cutoff {a.cutoff} (local time); every session started at or before it counts. {len(rows)} sessions"
             f"{'' if a.no_copy else f', {copied} new bundles copied to runs/frozen'}.\n\n{arm_table(rows)}\n\n"
             f"Red-team heat map:\n\n{heatmap(rows)}\n\n{consistency(rows)}\n")
+    if a.write_docs:
+        write_docs(rows, a.cutoff)
     FROZEN.mkdir(parents=True, exist_ok=True)
     (FROZEN / "summary.md").write_text(text)
     print(text)
