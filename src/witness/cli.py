@@ -824,7 +824,7 @@ def verify(
 
 @app.command()
 def triage(
-    bundle_path: Path = typer.Argument(..., help="bundle.jsonl whose mismatch findings to triage"),
+    bundle_path: Path = typer.Argument(..., help="bundle.jsonl whose warn mismatch / pgroup_escape findings to triage"),
     provider: str = typer.Option(
         "meta",
         "--provider",
@@ -833,7 +833,7 @@ def triage(
     ),
     out: Path | None = typer.Option(None, "--out", help="also write the triage report JSON here"),
 ) -> None:
-    """Have a Meta model adjudicate the bundle's `mismatch` findings; a deterministic
+    """Have a Meta model adjudicate the bundle's warn-severity `mismatch` and `pgroup_escape` findings; a deterministic
     verifier must corroborate each verdict from the record, else it stays NEEDS_HUMAN.
     Advisory only: never changes the exit code, policy, chain or signature."""
     from witness.analyst.triage import triage as run_triage
@@ -852,7 +852,7 @@ def triage(
         typer.echo("triage: no mismatch findings to adjudicate")
     for it in report.items:
         typer.echo(
-            f"triage: mismatch finding seq={it.finding_seq} (detector severity={it.detector_severity}) -> "
+            f"triage: {it.fkind} finding seq={it.finding_seq} (detector severity={it.detector_severity}) -> "
             f"{it.label} | model={it.model_verdict} {it.reason} cites={it.cited_seqs} | "
             f"verifier: {'corroborated' if it.corroborated else 'not corroborated'}"
         )

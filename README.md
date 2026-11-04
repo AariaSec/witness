@@ -188,6 +188,19 @@ findings and every other detector are never sent. The result is advisory: it doe
 not change `witness verify`'s exit code, the policy decision, the hash chain or the
 signature.
 
+It also adjudicates warn-severity `pgroup_escape` findings, the detector's noisiest
+signal (a real agent's own test runner detaching from the process group shows up as a
+warning in 12 of the 32 experiment sessions). Here the model supplies the judgement a rule
+cannot (is this detached process an ordinary tool?), and a deterministic guard bounds the risk:
+a retraction is accepted only if nothing in the bundle ties the escape to a decoy read, an
+outbound POST, a protected write, credential persistence or any stop finding, and a stop-severity
+escape can never be retracted. Without the model, those warnings stay in the review queue.
+Small labelled check (`scripts/triage_eval.py`, `runs/frozen/triage-eval-20261104/`):
+Muse Spark 1.3 and Muse Spark Open each resolved all 3 real benign warnings (from the 2 real
+Muse Code sessions whose bundles survive in `corpus/benign-real/`) and dismissed 0 of 6 true
+escape findings (one simulated escape scenario, three committed copies, used only as a
+stress test). n is tiny, so read it as "works on the cases we have", not as an accuracy rate.
+
 Live capture, 2026-11-03: on the real Muse Code bundle whose `mismatch` finding
 came from the since-fixed read-vs-write detector bug (every claim behind it is a
 read or search, and every file it names was recorded), Muse Spark 1.3 returned

@@ -61,8 +61,9 @@ what's solid versus what's a placeholder.
 
 ## Known gaps worth naming
 
-- **`witness triage` is narrow and advisory (added 2026-11-03).** It adjudicates only
-  `mismatch` findings. A model verdict counts only when a deterministic verifier
+- **`witness triage` is narrow and advisory (added 2026-11-03).** It adjudicates only warn-severity
+  `mismatch` and `pgroup_escape` findings (the latter evaluated on 3 real benign warnings + a 6-finding
+  simulated stress set, `docs/NUMBERS.md`; far too small for an accuracy claim). A model verdict counts only when a deterministic verifier
   re-derives it from the record; anything else stays `NEEDS_HUMAN`. Its one real-data
   proof is on a retired bug class (the old read-vs-write false positive, which the current
   detector no longer raises); the path-alias and real-discrepancy branches are

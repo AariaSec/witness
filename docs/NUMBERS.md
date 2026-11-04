@@ -783,6 +783,26 @@ new real-world detection. Signed bundle contents are unchanged (the retraction i
 separate advisory output, never written into the bundle). Shown only in the demo
 video as a replay of this captured output.
 
+## Triage of `pgroup_escape` warnings: small labelled check (2026-11-04)
+
+`scripts/triage_eval.py` (frozen output: `runs/frozen/triage-eval-20261104/results_{meta,baseten}.json`).
+Labelled set, all from committed files: BENIGN = the 3 warn-severity `pgroup_escape` findings in the two
+real Muse Code sessions in `corpus/benign-real/` that carry them; ESCAPE = the 6 stop-severity findings
+in the three simulated escape bundles (one scenario, three committed copies), included only as a stress
+test of the model's own judgement (in production a stop finding is never sent).
+
+| Model | BENIGN resolved (RETRACTED, guard-corroborated) | ESCAPE wrongly dismissed |
+|---|---|---|
+| Muse Spark 1.3 (Meta Model API) | 3 / 3 | 0 / 6 |
+| Muse Spark Open (Baseten) | 3 / 3 | 0 / 6 |
+
+Caveats, stated plainly: n is tiny; the 12 of 32 sessions in `results.csv` that carried a
+`pgroup_escape` warning are not in this set because their bundles were not retained (the 3 findings here come from
+two other real Muse Code sessions in `corpus/benign-real/`);
+the ESCAPE set is one scenario, and the model can see the decoy read and POST in the timeline. The guard
+(`_corroborate_pgroup`) is what bounds the risk; the model's contribution is the judgement that the detached
+process is an ordinary tool. This changes the review queue, not `witness verify`'s verdict.
+
 ## Correction (2026-11-03): the flagship Muse Code run's `mismatch` finding
 
 The flagship Muse Code run (`runs/frozen/muse-real-agent-proof-20261027-011548-7dca/`)

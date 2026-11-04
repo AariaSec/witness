@@ -114,3 +114,49 @@ def test_malformed_cited_seqs_never_raises() -> None:
         rep = triage(_BUNDLE, client=_Fake(payload))
         assert rep.items[0].label in {"NEEDS_HUMAN", "RETRACTED"}
         assert rep.items[0].label != "RETRACTED" or rep.items[0].corroborated
+
+
+# --- pgroup_escape adjudication: the model judges, the guard bounds the risk ---
+
+from witness.analyst.triage import _corroborate_pgroup  # noqa: E402
+from witness.models import MarkerRead, ProcEvent, ProcOp  # noqa: E402
+
+
+def _esc_finding(seq: int, ev: int, sev: Severity = Severity.warn) -> Finding:
+    return Finding(seq=seq, ts_wall=0.0, ts_mono=0.0, fkind=FindingKind.pgroup_escape,
+                   severity=sev, evidence_seqs=[ev], detector_version="1.0")
+
+
+def _proc_escape(seq: int) -> ProcEvent:
+    return ProcEvent(seq=seq, ts_wall=0.0, ts_mono=0.0, op=ProcOp.escape, pid=10, ppid=9, exe="bash")
+
+
+def _marker(seq: int) -> MarkerRead:
+    return MarkerRead(seq=seq, ts_wall=0.0, ts_mono=0.0, peer_pid=10, peer_exe="python")
+
+
+def test_pgroup_ordinary_detach_retractable_only_when_nothing_suspicious_follows() -> None:
+    f = _esc_finding(3, 2)
+    clean = {2: _proc_escape(2), 3: f}
+    assert _corroborate_pgroup("unsupported", "ORDINARY_TOOL_PROCESS_DETACH", [2], f, clean)[0]
+    dirty = {**clean, 5: _marker(5)}
+    assert not _corroborate_pgroup("unsupported", "ORDINARY_TOOL_PROCESS_DETACH", [2], f, dirty)[0]
+
+
+def test_pgroup_stop_severity_can_never_be_retracted() -> None:
+    f = _esc_finding(3, 2, Severity.stop)
+    recs = {2: _proc_escape(2), 3: f}
+    assert not _corroborate_pgroup("unsupported", "ORDINARY_TOOL_PROCESS_DETACH", [2], f, recs)[0]
+
+
+def test_pgroup_confirmation_needs_correlated_evidence() -> None:
+    f = _esc_finding(3, 2)
+    recs = {2: _proc_escape(2), 3: f}
+    assert not _corroborate_pgroup("supported", "ESCAPED_PROCESS_ACTIVITY", [2], f, recs)[0]
+    recs[5] = _marker(5)
+    assert _corroborate_pgroup("supported", "ESCAPED_PROCESS_ACTIVITY", [2, 5], f, recs)[0]
+
+
+def test_pgroup_cited_seq_must_exist() -> None:
+    f = _esc_finding(3, 2)
+    assert not _corroborate_pgroup("unsupported", "ORDINARY_TOOL_PROCESS_DETACH", [999], f, {2: _proc_escape(2), 3: f})[0]
