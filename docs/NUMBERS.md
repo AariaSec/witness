@@ -834,6 +834,22 @@ How to read it, honestly:
 - `pgroup_escape` warnings (the detector's noisy signal) fired in 23 of 24 sessions: min 0, median 8, max 19 per
   session; see the triage evaluation below.
 
+## Real MCP client session (2026-11-04)
+
+`runs/frozen/live-capture-mcp-20261104/casts.json`: an MCP client (the official SDK client over stdio) against witness's real MCP server
+(`python -m witness.mcp_server`) on the real README-setup bundle: `tools/list` returns the four tools, `witness_verify_bundle`
+returns `receipt_ok: true, policy: FAIL, stop_findings: 2`, and `witness_list_findings` returns the eleven findings, with the
+responses and timing as received (0.6 s). It is a plain MCP client, not a recording of Muse Code itself; the README documents
+that Muse Code and Claude Code were wired to the same server on 2026-10-27. `scripts/capture/capture_mcp.py`.
+
+## Stored Meta-model read-outs with browser-checked citations (2026-11-04)
+
+`console/public/bundles/{unprompted-readme-injection,muse-real-agent-proof}.explain.json` hold real read-outs from Muse Spark 1.3 and
+Muse Spark Open (and Muse Glimmer 30B for the smaller Muse Code bundle), made by `scripts/make_explain.py`. They sit outside the
+signed chain. The console checks every cited seq against the signed record in the browser; on these stored read-outs all cites exist
+and fit (Spark 1.3 27/27 on the 48-record bundle; on the 22-record bundle Spark 1.3 20/20, Spark Open 13/13, Glimmer 10/10), and
+`console/tests/citations.test.ts` asserts the browser's counts equal the Python scorer's.
+
 ## Meta-model benchmark on the analyst task (2026-11-04)
 
 `scripts/meta_bench.py` runs witness's own live analyst with each Meta model over every real bundle in the repo
