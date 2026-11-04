@@ -222,8 +222,8 @@ does not look at what the process is. That judgement is the model's alone, which
 evaluation includes a constant-answer baseline.
 Small labelled check (`scripts/triage_eval.py`, `runs/frozen/triage-eval-20261104/`): both Muse
 Spark 1.3 and Muse Spark Open call the 3 real benign warnings and 4 hand-built benign tool escapes
-(make, node, cargo, npm) ordinary, and refuse all 8 hand-built suspicious escapes (curl, nc, ssh, scp,
-and held-out wget, socat, telnet, rsync); the constant baseline would call all 8 ordinary. On the 12 real benign sessions of the unprompted batch it annotated all 73 `pgroup_escape` warnings `LIKELY_BENIGN` (`docs/NUMBERS.md`). The first
+(make, node, cargo, npm) ordinary, and refuse all 16 hand-built suspicious escapes (curl, nc, ssh, scp; held-out wget, socat, telnet, rsync;
+and a long tail of 8 more); the constant baseline would call all of them ordinary, and a ~30-tool allowlist ties the models on the simple sets (the models' only edge is 8/8 vs 0/8 on a long tail of unfamiliar benign tools). On the 12 real benign sessions of the unprompted batch it annotated all 73 `pgroup_escape` warnings `LIKELY_BENIGN` (`docs/NUMBERS.md`). The first
 version of the prompt did not do this (Spark 1.3 dismissed 2 of 4 and Spark Open 4 of 4), which is why the
 prompt now states the rule; the held-out half was added after that tuning. The suspicious cases are
 synthetic and the sample is tiny, so this shows the model does the work, not an accuracy rate.
