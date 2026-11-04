@@ -109,6 +109,13 @@ on stale information and ships what the sensor should have caught.
 self-report match an independent, content-free record of what actually
 happened.
 
+## Who it is for, and what it costs
+
+Teams whose coding agents open pull requests. Today the only account of what the agent did is the
+agent's own summary; witness replaces trusting that with an outside, signed, content-free record and a
+CI check, at a measured 16–44 s of CI time per run. No design partner and no pricing yet; see
+[`docs/WHO_PAYS.md`](docs/WHO_PAYS.md) for the buyer, what it replaces, and what is not proven.
+
 ## Quickstart
 
 **One command, one real session, end to end:**
