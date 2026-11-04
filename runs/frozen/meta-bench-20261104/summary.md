@@ -6,3 +6,5 @@
 | Muse Spark Open (Baseten) | all | 30 | 30/30 | 100% | 96% | 100% | 12/30 | 25 | 39 |
 | Muse Glimmer 30B (Modal GPU) | small (<= 26 records) | 8 | 5/8 | 100% | 100% | 70% | 0/5 | 43 | 56 |
 | Muse Glimmer 30B (Modal GPU) | all | 30 | 5/30 | 100% | 100% | 70% | 0/5 | 43 | 56 |
+| Muse Glimmer 30B (Modal GPU, chunked) | small (<= 26 records) | 8 | 8/8 | 100% | 98% | 93% | 0/8 | 21 | 33 |
+| Muse Glimmer 30B (Modal GPU, chunked) | all | 30 | 30/30 | 100% | 85% | 90% | 18/30 | 72 | 178 |

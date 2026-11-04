@@ -196,7 +196,8 @@ without running anything.
 (`docs/NUMBERS.md`, `runs/frozen/meta-bench-20261104/`). Muse Spark 1.3 and Muse Spark Open each completed 30 of 30, cited real
 records 100% of the time and covered every detector finding; Spark 1.3 invented a finding in 2 of 30 bundles, Spark Open in
 12 of 30 (mostly asserting a claim mismatch the detectors did not raise). Muse Glimmer 30B completed only 5 of 30 because of its
-8k-token context. The models add readable narrative, not detections. No non-Meta model was benchmarked.
+8k-token context; with windowed analysis and schema-constrained decoding it completes all 30 but invents a finding in 18 of 30 (windows lose
+context), so completeness and faithfulness trade off. The models add readable narrative, not detections. No non-Meta model was benchmarked.
 
 ## Let a Meta model triage a finding (optional)
 
