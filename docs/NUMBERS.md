@@ -892,6 +892,8 @@ and scores each report against the signed record deterministically, with no judg
 | Muse Spark Open (Baseten, open-weight) | all | 30 | 30/30 | 100% | 96% | 100% | 12/30 | 25 | 39 |
 | Muse Glimmer 30B (Modal GPU, open-weight) | small | 8 | 5/8 | 100% | 100% | 70% | 0/5 | 43 | 56 |
 | Muse Glimmer 30B (Modal GPU, open-weight) | all | 30 | 5/30 | 100% | 100% | 70% | 0/5 | 43 | 56 |
+| Muse Glimmer 30B, **chunked** (windows of 12 records, merged; schema-constrained decoding) | small | 8 | 8/8 | 100% | 98% | 93% | 0/8 | 21 | 33 |
+| Muse Glimmer 30B, **chunked** | all | 30 | 30/30 | 100% | 85% | 90% | 18/30 | 72 | 178 |
 
 What it shows, stated plainly:
 - Both hosted models cite real records every time (100% of cited seqs exist) and cover every finding the deterministic
@@ -904,6 +906,7 @@ What it shows, stated plainly:
 - "Cited record fits the code" uses a deliberately generous mapping (`scripts/meta_bench.py:CODE_KINDS`).
 - The offline template (no model) scores 100% coverage and 0 invented by construction, so this measures the faithfulness of a
   narrative, not extra detection power: the models add readable prose, not detections.
+- **Chunked Glimmer (added later the same night).** To get past the 8k context, `analyze()` now splits a bundle into windows of 12 records, calls the model once per window with llama.cpp schema-constrained output (a small model otherwise echoed records back instead of a report) and merges the reports (codes unioned, confidence the minimum). Result: it completes **30 of 30** bundles (up from 5), citations still all exist, but it is the least faithful narrative: it invents a finding in **18 of 30** bundles and only 85% of its cites are the right kind. The cause is visible: a window that holds raw events but not the detector's finding records asserts finding-class codes it cannot see were raised. On the 8 small bundles (one or two windows) it is clean (0/8 invented). Chunking trades completeness for faithfulness.
 - Glimmer's 8k context is a setting of OUR deployment (`--n_ctx 8192` in `scripts/glimmer_modal.py`, chosen to fit the A10G), not a limit of
   the model; 3 of its 25 failures were output-schema failures on 13- and 19-record bundles, not context errors; and it kept its default token budget
   while the two hosted models were raised to 16000. All 14 invented findings are `CLAIM_RECORD_MISMATCH`, which the console deliberately
