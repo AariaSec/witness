@@ -186,7 +186,7 @@ class BasetenClient(_OpenAICompatibleClient):
         key_path: Path = DEFAULT_BASETEN_KEY_PATH,
         base_url: str = DEFAULT_BASETEN_URL,
         model: str = DEFAULT_BASETEN_MODEL,
-        max_tokens: int = 6000,
+        max_tokens: int = 16000,
         timeout_s: float = 60.0,
     ) -> None:
         super().__init__("Baseten", api_key, key_path, base_url, model, max_tokens, timeout_s)
@@ -227,7 +227,7 @@ class MetaModelClient(_OpenAICompatibleClient):
         key_path: Path = DEFAULT_META_MODEL_KEY_PATH,
         base_url: str = DEFAULT_META_MODEL_URL,
         model: str = DEFAULT_META_MODEL,
-        max_tokens: int = 6000,
+        max_tokens: int = 12000,
         timeout_s: float = 60.0,
     ) -> None:
         super().__init__("Meta Model API", api_key, key_path, base_url, model, max_tokens, timeout_s)
