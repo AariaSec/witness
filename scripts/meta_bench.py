@@ -29,14 +29,15 @@ import time
 from pathlib import Path
 
 from witness.analyst.client import LLMClientError
-from witness.analyst.run import _PROMPT_PATH_DEFAULT, _live_report
+from witness.analyst.run import _PROMPT_PATH_DEFAULT, _live_report_auto
 from witness.cli import _resolve_analyst_client
 from witness.ledger import read_ledger
 from witness.models import Finding, FindingKind, Kind
 
 ROOT = Path(__file__).resolve().parents[1]
 SMALL_MAX_RECORDS = 26
-PROVIDERS = {"Muse Spark 1.3 (Meta API)": "meta", "Muse Spark Open (Baseten)": "baseten", "Muse Glimmer 30B (Modal GPU)": "glimmer"}
+PROVIDERS = {"Muse Spark 1.3 (Meta API)": "meta", "Muse Spark Open (Baseten)": "baseten", "Muse Glimmer 30B (Modal GPU)": "glimmer",
+             "Muse Glimmer 30B (Modal GPU, chunked)": "glimmer"}
 
 K = Kind
 CODE_KINDS: dict[str, set] = {
@@ -94,6 +95,9 @@ def score(path: Path, records, rep) -> dict:
 
 def run_provider(name: str, provider: str, items: list[tuple[Path, list]], out: list, lock: threading.Lock) -> None:
     client = _resolve_analyst_client(provider)
+    if client is not None and provider == "glimmer":
+        # the plain Glimmer row is the original one-call analyst; the chunked row splits bundles into windows that fit 8k
+        client.chunk_records = None if not name.endswith("chunked)") else 12  # type: ignore[attr-defined]
     if client is not None:
         client._max_tokens = max(getattr(client, '_max_tokens', 0), 16000) if provider != 'glimmer' else client._max_tokens
         client._timeout_s = 180  # the product default is 60 s (Meta) / 300 s (Glimmer); loaded APIs need more room here
@@ -105,7 +109,7 @@ def run_provider(name: str, provider: str, items: list[tuple[Path, list]], out: 
             try:
                 # same call analyze() makes (one retry on schema failure inside), but the failure reason is kept
                 # instead of silently falling back to the offline template
-                rep = _live_report(recs, client, _PROMPT_PATH_DEFAULT, getattr(client, "_model", "live"))
+                rep = _live_report_auto(recs, client, _PROMPT_PATH_DEFAULT, getattr(client, "_model", "live"))
                 row = score(path, recs, rep)
             except LLMClientError as exc:
                 row = {"bundle": str(path.relative_to(ROOT)), "n_records": len(recs), "status": "failed",
@@ -136,6 +140,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--only", default="", help="substring of a model name: run only those rows and merge them into an existing results.json")
     a = ap.parse_args()
     items = [(p, read_ledger(p)) for p in bundles()]
     if a.limit:
@@ -143,10 +148,14 @@ def main() -> None:
     print(len(items), "bundles x", len(PROVIDERS), "models", flush=True)
     out: list[dict] = []
     lock = threading.Lock()
-    ths = [threading.Thread(target=run_provider, args=(n, p, items, out, lock)) for n, p in PROVIDERS.items()]
+    chosen = {n: p for n, p in PROVIDERS.items() if not a.only or a.only in n}
+    ths = [threading.Thread(target=run_provider, args=(n, p, items, out, lock)) for n, p in chosen.items()]
     [t.start() for t in ths]
     [t.join() for t in ths]
     a.out.mkdir(parents=True, exist_ok=True)
+    if a.only and (a.out / "results.json").exists():
+        old = [r for r in json.loads((a.out / "results.json").read_text()) if r["model"] not in chosen]
+        out = old + out
     (a.out / "results.json").write_text(json.dumps(out, indent=1))
     table = summarize(out)
     (a.out / "summary.md").write_text(table + "\n")

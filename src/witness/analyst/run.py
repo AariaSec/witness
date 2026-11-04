@@ -161,7 +161,14 @@ def _live_report(
         "enums, counts, timestamps; no prompt or response text exists in "
         "this data). Respond with ONE JSON object matching this schema "
         f"exactly, no other text:\n{json.dumps(_LIVE_OUTPUT_SCHEMA)}\n\n"
-        f"Records:\n{_records_payload(records)}"
+        + (
+            # a small model shown a window of records tends to echo a record back; show the exact output shape
+            'Shape of your answer (do NOT repeat the records): {"summary_codes": ["PROC_SPAWN"], "timeline": [{"seq_refs": [1], '
+            '"code": "PROC_SPAWN", "severity": "info"}], "reported_vs_recorded": [], "confidence": 0.8}\n\n'
+            if getattr(client, "chunk_records", None)
+            else ""
+        )
+        + f"Records:\n{_records_payload(records)}"
     )
     messages: list[dict[str, object]] = [{"role": "user", "content": user_content}]
 
@@ -193,6 +200,37 @@ def _live_report(
     raise LLMClientError(f"analyst output failed schema validation twice: {last_error}")
 
 
+def _live_report_auto(
+    records: Sequence[Record],
+    client: LLMClient,
+    prompt_path: Path,
+    model_id: str,
+) -> Report:
+    """One live call, or, for a client with a small context window (`chunk_records` set, e.g. Muse Glimmer's 8k), one call per
+    window of records with the reports merged: summary codes unioned, timelines and discrepancies concatenated, confidence the
+    MINIMUM over windows (conservative), tool calls summed. Any window that fails raises, so a chunked report is all-or-nothing."""
+    window = getattr(client, "chunk_records", None)
+    recs = list(records)
+    if not window or len(recs) <= window:
+        return _live_report(recs, client, prompt_path, model_id)
+    parts = [_live_report(recs[i : i + window], client, prompt_path, model_id) for i in range(0, len(recs), window)]
+    codes: list[str] = []
+    for p in parts:
+        for c in p.summary_codes:
+            if c not in codes:
+                codes.append(c)
+    return Report(
+        model_id=model_id,
+        prompt_version=parts[0].prompt_version,
+        analyst_status="ok",
+        tool_calls=sum(p.tool_calls for p in parts),
+        summary_codes=codes,
+        timeline=[st for p in parts for st in p.timeline],
+        reported_vs_recorded=[d for p in parts for d in p.reported_vs_recorded],
+        confidence=min(p.confidence for p in parts),
+    )
+
+
 def analyze(
     bundle: Path,
     client: LLMClient | None = None,
@@ -220,7 +258,7 @@ def analyze(
         return _offline_report(records, resolved_prompt_path)
 
     try:
-        return _live_report(records, client, resolved_prompt_path, model_id)
+        return _live_report_auto(records, client, resolved_prompt_path, model_id)
     except LLMClientError:
         return _offline_report(records, resolved_prompt_path)
 

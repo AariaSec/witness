@@ -255,6 +255,8 @@ class GlimmerClient(_OpenAICompatibleClient):
         if not url.rstrip("/").endswith("/chat/completions"):
             url = url.rstrip("/") + "/v1/chat/completions" if not url.rstrip("/").endswith("/v1") else url.rstrip("/") + "/chat/completions"
         super().__init__("Glimmer (Modal)", "none", Path("/dev/null"), url, model, max_tokens, timeout_s)
+        # the deployment's 8192-token context cannot hold a whole bundle: analyze() splits it into windows of this many records
+        self.chunk_records = 12
 
 
 __all__ = [
