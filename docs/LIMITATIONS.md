@@ -360,3 +360,27 @@ than was available in the remaining time before submission.
   verified live (see `docs/NUMBERS.md`), alongside the open-weight paths via
   Baseten and a self-deployed Muse Glimmer 30B on Modal. It is slow and can
   time out (24-142 s observed) and then falls back to the offline template.
+
+
+## Said-vs-did display: what "NOT OBSERVED" and "contradicted" mean (added 2026-11-03)
+
+In the console's claim diff, a claim such as "ran a shell command" is marked
+`NOT OBSERVED` (and counted under "contradicted") when no process spawn is matched
+to it within the matching window. That is a limit of the matching heuristic and of
+what a passive recorder can see; it is **not** proof the agent did not run the
+command. In real-agent bundles (including the flagship Muse Code run) such rows can
+appear for commands the agent plausibly did run. Treat the "recorded but never
+mentioned" rows, and findings from the deterministic detectors, as the evidence;
+treat unmatched shell claims as "could not be corroborated." The 32-session
+experiment's 0% mismatch rate is the measure of agents contradicting their own
+reports.
+
+## The numbers page's "5.9-19 ms persistence detection" tile (added 2026-11-03)
+
+The console's numbers page shows persistence detection at 5.9-19.3 ms. No frozen
+artifact in this repo backs that range, so treat it as indicative only. The sourced
+latency figures are the 298 ms real stop (`docs/NUMBERS.md`) and the 3-16 ms
+(median 9 ms) stop times in `runs/frozen/arena-20261028b/scores.json`, all measured
+on the owner's machine, not a CI runner. The numbers page also still lists four live
+analyst calls and the Spark 1.3 0.60 -> 0.85 pair; `docs/NUMBERS.md` has the current
+count.

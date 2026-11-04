@@ -38,7 +38,9 @@ in two places only, and every model called at runtime is a Meta model.
 
 witness also ships a parser for Claude Code session logs, to show the recorder
 works on a second, different agent. Claude Code is only ever an *observed
-subject*; witness never calls it, or any non-Meta model, at runtime.
+subject* (and, separately, one MCP client we connected to witness's MCP server
+to show it is not tied to one client); witness never calls it, or any non-Meta
+model, as a model at runtime.
 
 ## What this is not
 
