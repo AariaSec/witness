@@ -762,6 +762,16 @@ fell back to the offline template (`analyst_status=offline`); only the first
 the Meta API also fell back at 59 s and 142 s before one succeeded.
 
 
+## Real terminal recordings for the demo video (2026-11-03)
+
+`runs/frozen/live-capture-pty-20261103/casts.json`: three witness commands executed for real in a
+pseudo-terminal, with the output's real timing recorded (Muse Spark 1.3 analyst 27.8 s, Muse Glimmer 30B
+analyst 55.2 s on its 2nd attempt after a first attempt that did not reach `status=ok`, Muse Spark 1.3 triage
+16.6 s). `scripts/capture/capture_live_pty.py` keeps a capture only if its output contains `status=ok`.
+The video plays these recordings with the long model waits fast-forwarded and a clock showing real time. Calls 1-2
+ran on a recorded scripted-scenario bundle (`simulated: true`), the triage on a real Muse Code bundle. Earlier
+stdout-only captures (`live-capture-{meta,glimmer,triage}-20261103`) remain.
+
 ## Live capture: Meta-model triage of a finding (2026-11-03)
 
 `witness triage runs/frozen/muse-real-agent-proof-20261027-011548-7dca/bundle.jsonl --provider meta`
