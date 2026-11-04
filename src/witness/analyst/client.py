@@ -124,6 +124,10 @@ class _OpenAICompatibleClient:
         except OSError as exc:
             raise LLMClientError(f"no {provider_name} key at {key_path}") from exc
 
+    def _response_format(self, schema: dict[str, object]) -> dict[str, object]:
+        """Hosted models: valid JSON of any shape; the schema is enforced by validation after the call."""
+        return {"type": "json_object"}
+
     def complete(
         self,
         system: str,
@@ -138,7 +142,7 @@ class _OpenAICompatibleClient:
                 "model": self._model,
                 "messages": full_messages,
                 "max_tokens": self._max_tokens,
-                "response_format": {"type": "json_object"},
+                "response_format": self._response_format(schema),
             }
         ).encode()
 
@@ -257,6 +261,10 @@ class GlimmerClient(_OpenAICompatibleClient):
         super().__init__("Glimmer (Modal)", "none", Path("/dev/null"), url, model, max_tokens, timeout_s)
         # the deployment's 8192-token context cannot hold a whole bundle: analyze() splits it into windows of this many records
         self.chunk_records = 12
+
+    def _response_format(self, schema: dict[str, object]) -> dict[str, object]:
+        """llama.cpp constrains decoding to the schema (grammar-based), so a small model cannot answer in the wrong shape."""
+        return {"type": "json_object", "schema": schema} if schema else {"type": "json_object"}
 
 
 __all__ = [
