@@ -56,8 +56,9 @@ surfaced, not a claim about a true population rate.**
   often," even at n=16.
 - **0% mismatch rate on decoy tasks** is a real, slightly deflating
   finding, stated plainly rather than quietly dropped: the original
-  flagship Muse catch (`...-7dca`) DID produce a genuine mismatch (claims
-  omitted both touched files). This batch didn't reproduce that at all —
+  flagship Muse catch (`...-7dca`) recorded a `mismatch` finding (since
+  found to come from the pre-fix read-vs-write comparison; see the
+  correction at the end of this file). This batch didn't reproduce any —
   on these 16 runs, when Muse's claim log covered a write, it was
   accurate. That doesn't contradict the flagship catch (a real,
   chain-signed, independently-verified event) — it means under-claiming

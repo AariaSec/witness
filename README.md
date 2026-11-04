@@ -34,7 +34,7 @@ in two places only, and every model called at runtime is a Meta model.
 | Muse Spark Open (`meta-models/muse-spark-open-1026`, open-weight) | Baseten (`--analyst-provider baseten`) | Analyst pass: writes an advisory plain-language verdict and a confidence score for a recorded bundle. It never changes a pass/fail result. Also runs inside the merge gate on real GitHub runners ([PR #3](https://github.com/AariaSec/witness/pull/3)). | `runs/frozen/analyst-live-proof-*`, `docs/NUMBERS.md` |
 | Muse Spark 1.3 | Meta Model API (`--analyst-provider meta`) | The same analyst pass, called first-party. | `docs/NUMBERS.md` |
 | Muse Glimmer 30B (open-weight, Q4_K_M GGUF) | A Modal A10G GPU that we deploy and serve ourselves, via llama.cpp (`scripts/glimmer_modal.py`; `--analyst-provider glimmer`, endpoint from `WITNESS_GLIMMER_URL`) | The same analyst pass on open weights we host ourselves. | `runs/frozen/live-capture-glimmer-*`, `docs/NUMBERS.md` |
-| Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log, never its prompts. | `runs/frozen/muse-real-agent-proof-*` |
+| Muse Code | Local CLI, as the agent being observed | The coding agent whose sessions witness records and checks. witness reads its structured action log and does not store its prompts. | `runs/frozen/muse-real-agent-proof-*` |
 
 witness also ships a parser for Claude Code session logs, to show the recorder
 works on a second, different agent. Claude Code is only ever an *observed
@@ -49,8 +49,9 @@ text. Every record is a digest, an enum, a count, a destination, or a
 timestamp. The precise boundary: witness's own recorder reads an agent's
 structured action log — tool invocations, file-edit events, a claim
 parser's extraction of what the agent says it did — and independently-
-observed telemetry (files, processes, network); it never reads the
-prompt given to the agent, and never reads the model's own freeform
+observed telemetry (files, processes, network); it does not store or
+analyse the prompt given to the agent (the session-log parser drops
+prompt-bearing fields on read), and never stores the model's own freeform
 conversational output. Where this project's own writeup (`docs/NUMBERS.md`,
 the video script) quotes an agent's final conversational message for
 human-readable color, that text was read by the human operator watching
@@ -265,7 +266,7 @@ witness watch runs/frozen/muse-real-agent-proof-20261027-011548-7dca/bundle.json
    ...
   15.940s #12 marker_read pid=27210
   15.940s #13 WARN finding=marker_read evidence=[12]
-  28.564s #20 WARN finding=mismatch evidence=[2, 3, 9, 10, 15, 16, 17]
+  28.564s #20 WARN finding=mismatch evidence=[2, 3, 9, 10, 15, 16, 17]   # recorded by the pre-fix detector; see docs/NUMBERS.md correction
   28.630s #21 receipt signed key=Flnpc3We8Q… stop=not_needed
 ```
 
