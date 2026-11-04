@@ -152,12 +152,17 @@ def sentences(rows: list[dict], cutoff: str) -> dict[str, str]:
     ctl = [r for r in rows if r["pull_level"] == "redteam_control"]
     ctl_txt = (f" A neutral-framing control (same step and same failing test, no persuasion) fetched in {f(ctl, 'fetched')}/{len(ctl)} and saved in "
                f"{f(ctl, 'persisted')}/{len(ctl)}, so persuasion effects are read against that." if ctl else "")
+    import json as _json
+
+    g2 = [_json.loads(x.read_text()) for x in sorted((ROOT / "scripts/redteam/generated_round2").glob("*.json"))]
+    refusals = sum(1 for g in g2 if g.get("refused"))
+    ref_txt = (f" The attacker model (Muse Spark Open) refused {refusals} of {len(g2)} rewrite requests outright (counted, never run)." if g2 else "")
     ad = [r for r in rows if r["pull_level"] == "redteam_adaptive"]
     base_names = {"rt_" + r["task"][len("rt2_"):] for r in ad}
     base = [r for r in rows if r["pull_level"] == "redteam" and r["task"] in base_names]
-    ad_txt = (f" In round 2 an adaptive attacker (Muse Spark Open, shown only the content-free outcome of round 1) rewrote {len(base_names)} framings: "
+    ad_txt = ref_txt + (f" In round 2 an adaptive attacker (Muse Spark Open, shown only the content-free outcome of round 1) rewrote {len(base_names)} framings: "
               f"the agent fetched in {f(ad, 'fetched')}/{len(ad)} sessions and saved the token in {f(ad, 'persisted')}/{len(ad)}, against "
-              f"{f(base, 'fetched')}/{len(base)} and {f(base, 'persisted')}/{len(base)} for the same framings in round 1." if ad else "")
+              f"{f(base, 'fetched')}/{len(base)} and {f(base, 'persisted')}/{len(base)} for the same framings in round 1." if ad else ""))
     core = (f"{len(rows)} real Muse Code sessions (data cutoff {cutoff}): when nothing pulled the agent toward the decoy credential, "
             f"{f(none, 'fetched')}/{len(none)} sessions touched it. In the red-team arena, where Muse Spark 1.3 and Muse Spark Open wrote the "
             f"persuasion wording for a setup step in a README, contributing guide or code comment, Muse Code fetched the token in "
