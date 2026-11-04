@@ -1,12 +1,12 @@
 name: witness-check
 
-# Deliberately narrow trigger: only runs when a PR actually touches a
-# committed bundle under runs/frozen/ — NOT on every PR to this repo.
-# This repo has never had a .github/workflows/ directory before this
-# file; see the PR description / commit message this file shipped in for
-# a note asking a human to sanity-check this trigger condition before it
-# is ever merged to main (see witness's own README / docs/ARCHITECTURE.md
-# "Receipt v0.2 / CI gate" section for the full design).
+# Runs only when a PR touches a committed bundle under runs/frozen/ (not on every PR).
+# What it does, in order, and what is deterministic:
+#   1. verifies EVERY added/changed bundle (hash chain, Ed25519 receipt, signer pin, built-in policy);
+#   2. the signer pin is read from the BASE branch (.witness/trusted-signer.pub), so a PR cannot swap it;
+#   3. an optional Meta-model analyst read-out is added for context, advisory only: it never changes pass/fail;
+#   4. one sticky comment on the PR summarises the verdict and links the bundle in the hosted console.
+# Known gap (docs/LIMITATIONS.md): a PR that changes code but carries no bundle is not checked at all.
 on:
   pull_request:
     paths:
@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   witness-verify:
@@ -24,21 +25,100 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find the changed bundle(s)
-        id: find
-        run: |
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          CHANGED="$(git diff --name-only "$BASE" "$HEAD" -- 'runs/frozen/**/bundle.jsonl' | head -n1)"
-          if [ -z "$CHANGED" ]; then
-            echo "no changed bundle.jsonl found under runs/frozen/ — nothing to verify"
-          fi
-          echo "bundle=$CHANGED" >> "$GITHUB_OUTPUT"
-
-      - name: witness verify
-        if: steps.find.outputs.bundle != ''
-        uses: ./.github/actions/witness-verify
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          bundle-path: ${{ steps.find.outputs.bundle }}
-          with-analyst: "true"
-          baseten-api-key: ${{ secrets.BASETEN_API_KEY }}
+          python-version: "3.11"
+
+      - name: Install witness
+        run: pip install -e .
+
+      - name: Verify every changed bundle
+        id: verify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASETEN_API_KEY: ${{ secrets.BASETEN_API_KEY }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set +e
+          OUT="$RUNNER_TEMP/witness"; mkdir -p "$OUT"
+          PIN=()
+          PIN_NOTE="no signer pin on the base branch: integrity only"
+          if git cat-file -e "$BASE_SHA:.witness/trusted-signer.pub" 2>/dev/null; then
+            git show "$BASE_SHA:.witness/trusted-signer.pub" > "$OUT/trusted-signer.pub"
+            PIN=(--trusted-key "$OUT/trusted-signer.pub")
+            PIN_NOTE="signer pinned from the base branch"
+          fi
+          mapfile -t BUNDLES < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$HEAD_SHA" -- 'runs/frozen/**/bundle.jsonl')
+          echo "bundles=${#BUNDLES[@]}" >> "$GITHUB_OUTPUT"
+          if [ "${#BUNDLES[@]}" -eq 0 ]; then echo "no added/changed bundle.jsonl found"; exit 0; fi
+          FAILED=false; i=0
+          : > "$OUT/index.txt"
+          for b in "${BUNDLES[@]}"; do
+            i=$((i+1))
+            witness verify "$b" "${PIN[@]}" --with-analyst > "$OUT/out_$i.txt" 2>&1
+            rc=$?
+            echo "$rc" > "$OUT/rc_$i.txt"; echo "$b" >> "$OUT/index.txt"
+            [ "$rc" -ne 0 ] && FAILED=true
+            echo "### $b (exit $rc)"; cat "$OUT/out_$i.txt"
+          done
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          python3 - "$OUT" "$FAILED" "$PIN_NOTE" "$RUN_URL" <<'PY'
+          import re, sys, pathlib
+          out, failed, pin_note, run_url = pathlib.Path(sys.argv[1]), sys.argv[2] == "true", sys.argv[3], sys.argv[4]
+          LINKS = {
+              "demo-green": "demo-green", "demo-red": "demo-red",
+              "muse-real-agent-proof": "muse-real-agent-proof", "claude-real-agent-proof": "claude-real-agent-proof",
+              "credential-persist-real-proof": "credential-persist-real-proof", "demo-readme-injection": "unprompted-readme-injection", "20261103-231501-9019": "unprompted-readme-injection",
+              "analyst-live-proof": "analyst-live-proof",
+          }
+          paths = out.joinpath("index.txt").read_text().split()
+          rows, notes = [], []
+          for i, b in enumerate(paths, 1):
+              txt = out.joinpath(f"out_{i}.txt").read_text()
+              rc = int(out.joinpath(f"rc_{i}.txt").read_text())
+              ok = re.search(r"OK: (\d+) records, findings=(\{.*?\}), receipt_ok=(\w+)", txt)
+              pol = re.search(r"policy: (\w+) \(stop findings: (\d+)\)", txt)
+              ana = re.search(r"analyst: (status=\S+ confidence=\S+ codes=\[[^\]]*\])", txt)
+              bad = re.search(r"INVALID: .*", txt)
+              link = next((f"https://aariasec.github.io/witness/?bundle=bundles/{v}.jsonl&replay=1&speed=4" for k, v in LINKS.items() if k in b), None)
+              res = "PASS" if rc == 0 else ("FAIL: " + bad.group(0) if bad else f"FAIL (exit {rc})")
+              rows.append(f"| `{b}` | {res} | {ok.group(1) if ok else '-'} | {pol.group(1) if pol else '-'}{(' (' + pol.group(2) + ' stop)') if pol and pol.group(2) != '0' else ''} | {ok.group(2) if ok else '-'} |")
+              if ana:
+                  notes.append(f"Analyst read-out for `{b}` (advisory, never affects the result): `{ana.group(1)}`")
+              if link:
+                  notes.append(f"[Replay `{b}` in the console]({link})")
+          head = "FAIL" if failed else "PASS"
+          icon = "❌" if failed else "✅"
+          body = ["<!-- witness-check -->", f"### {icon} witness-check: {head}", "",
+                  "| Bundle | Result | Records | Policy | Findings |", "|---|---|---|---|---|"] + rows + [""]
+          body += [f"- {n}" for n in notes] + [""]
+          body.append(f"<sub>Chain, signature, signer pin and policy decide pass or fail; a stop-severity finding fails the check. {pin_note}. [CI run]({run_url})</sub>")
+          text = "\n".join(body) + "\n"
+          out.joinpath("comment.md").write_text(text)
+          import os
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(text)
+          PY
+
+      - name: Post or update the PR comment
+        if: always() && steps.verify.outputs.bundles != '' && steps.verify.outputs.bundles != '0'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          F="$RUNNER_TEMP/witness/comment.md"
+          [ -f "$F" ] || exit 0
+          ID="$(gh api "repos/$REPO/issues/$PR/comments" --paginate -q '.[] | select(.body | contains("<!-- witness-check -->")) | .id' | head -n1)"
+          if [ -n "$ID" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@"$F" > /dev/null
+          else
+            gh api "repos/$REPO/issues/$PR/comments" -F body=@"$F" > /dev/null
+          fi
+
+      - name: Fail the check if any bundle failed
+        if: steps.verify.outputs.failed == 'true'
+        run: exit 1
